@@ -1,110 +1,27 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Student Attendance System</title>
-
-  <!-- Firebase JS SDK (Module version) -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-app.js";
-    import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-analytics.js";
-    import { getAuth, RecaptchaVerifier, signInWithPhoneNumber } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-auth.js";
-    import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
-
-    const firebaseConfig = {
-      apiKey: "AIzaSyBSa6AKAJy0oZLumq-ZLnOkSnz-4UgndAA",
-      authDomain: "attendance-project-39c42.firebaseapp.com",
-      projectId: "attendance-project-39c42",
-      storageBucket: "attendance-project-39c42.firebasestorage.app",
-      messagingSenderId: "119365803885",
-      appId: "1:119365803885:web:eaab4dafe3bc5277bb4464",
-      measurementId: "G-WKDJTJGTHH"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const analytics = getAnalytics(app);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
-
-    window.sendOTP = function() {
-      const phone = document.getElementById('phone').value;
-      if (!phone) return alert('Enter phone number');
-
-      window.recaptchaVerifier = new RecaptchaVerifier('sendOTPBtn', { 'size': 'invisible' }, auth);
-
-      signInWithPhoneNumber(auth, phone, window.recaptchaVerifier)
-        .then((confirmationResult) => {
-          window.confirmationResult = confirmationResult;
-          document.getElementById('otpDiv').style.display = 'block';
-          alert('OTP sent to your phone');
-        }).catch((error) => alert(error));
-    }
-
-    window.verifyOTP = function() {
-      const otp = document.getElementById('otp').value;
-      if (!otp) return alert('Enter OTP');
-
-      window.confirmationResult.confirm(otp)
-        .then(async () => {
-          if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(async (pos) => {
-              const gps = { lat: pos.coords.latitude, lon: pos.coords.longitude };
-              const phone = document.getElementById('phone').value;
-
-              try {
-                await addDoc(collection(db, "attendance"), {
-                  phone: phone,
-                  gps: gps,
-                  subject: "Math",
-                  timestamp: new Date()
-                });
-                alert('Attendance recorded successfully ✅');
-              } catch (err) {
-                alert('Error saving attendance: ' + err);
-              }
-
-            }, (err) => alert('GPS error: ' + err.message));
-          } else {
-            alert('GPS not supported by your device');
-          }
-        })
-        .catch((err) => alert('OTP verification failed: ' + err));
-    }
-
-    // New: QR → Phone div flow
-    window.showPhoneDiv = function() {
-      document.getElementById('qrDiv').style.display = 'none';
-      document.getElementById('phoneDiv').style.display = 'block';
-    }
-  </script>
-
-  <style>
-    body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
-    input, button { padding: 10px; font-size: 16px; margin: 5px; }
-  </style>
+<title>Smart Attendance</title>
+<link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
 
-  <h1>Student Attendance System</h1>
+<h2>Scan QR & Mark Attendance</h2>
 
-  <!-- Step 1: QR -->
-  <div id="qrDiv">
-    <img src="static/class_qr.png" alt="Class QR" width="300">
-    <p>Scan the QR or click below to continue</p>
-    <button onclick="showPhoneDiv()">Continue</button>
-  </div>
+<img src="/static/class_qr.png" width="200">
 
-  <!-- Step 2: Phone + OTP -->
-  <div id="phoneDiv" style="display:none">
-    <input type="text" id="phone" placeholder="Enter phone number">
-    <button id="sendOTPBtn" onclick="sendOTP()">Send OTP</button>
+<input id="phone" placeholder="Enter phone number">
+<button onclick="sendOTP()">Send OTP</button>
 
-    <div id="otpDiv" style="display:none">
-      <input type="text" id="otp" placeholder="Enter OTP">
-      <button onclick="verifyOTP()">Verify OTP & Submit Attendance</button>
-    </div>
-  </div>
+<div id="otpDiv" style="display:none">
+<input id="otp" placeholder="Enter OTP">
+<button onclick="verifyOTP()">Verify</button>
+</div>
+
+<p id="msg"></p>
+
+<script src="/static/student.js"></script>
 
 </body>
 </html>
+

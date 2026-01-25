@@ -1,30 +1,51 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Teacher Panel</title>
+    <title>Teacher Dashboard - Smart Attendance</title>
+    <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
 
-<h2>Attendance Records</h2>
+<h2>Teacher Dashboard</h2>
 
-<table border="1">
-<tr>
-    <th>ID</th>
-    <th>Phone</th>
-    <th>Date & Time</th>
-</tr>
+<hr>
 
-{% for row in data %}
-<tr>
-    <td>{{ row[0] }}</td>
-    <td>{{ row[1] }}</td>
-    <td>{{ row[2] }}</td>
-</tr>
-{% endfor %}
+<h3>📋 Attendance Records</h3>
 
+<table border="1" width="100%">
+    <tr>
+        <th>Phone</th>
+        <th>Time</th>
+        <th>Latitude</th>
+        <th>Longitude</th>
+        <th>Marked By</th>
+    </tr>
+    {% for row in data %}
+    <tr>
+        <td>{{ row[1] }}</td>
+        <td>{{ row[2] }}</td>
+        <td>{{ row[3] }}</td>
+        <td>{{ row[4] }}</td>
+        <td>{{ row[5] }}</td>
+    </tr>
+    {% endfor %}
 </table>
+
+<hr>
+
+<h3>🆘 Manual Override (Faculty)</h3>
+
+<form action="/override" method="POST">
+    <input type="text" name="phone" placeholder="Student Phone Number" required>
+    <button type="submit">Mark Present (Override)</button>
+</form>
+
+<br>
+
+<a href="/">⬅ Back to QR Page</a>
 
 </body>
 </html>
+
 
 
