@@ -3,25 +3,32 @@
 <head>
 <title>Smart Attendance</title>
 <link rel="stylesheet" href="/static/style.css">
+<style>
+body { font-family: Arial; text-align: center; padding: 20px; }
+input { padding: 15px; font-size: 18px; width: 90%; max-width: 400px; margin: 10px 0; }
+button { padding: 15px 25px; font-size: 18px; margin: 10px; cursor: pointer; }
+#otpDiv { display: none; }
+</style>
 </head>
 <body>
 
-<h2>Scan QR & Mark Attendance</h2>
+<h2>📌 Scan QR & Mark Attendance</h2>
 
 <img src="/static/class_qr.png" width="200">
 
-<input id="phone" placeholder="Enter phone number">
+<br><br>
+
+<input id="phone" placeholder="+91XXXXXXXXXX">
+<div id="recaptcha"></div>
 <button onclick="sendOTP()">Send OTP</button>
 
-<div id="otpDiv" style="display:none">
+<div id="otpDiv">
 <input id="otp" placeholder="Enter OTP">
-<button onclick="verifyOTP()">Verify</button>
+<button onclick="verifyOTP()">Verify & Mark</button>
 </div>
 
-<p id="msg"></p>
+<p id="msg" style="color: green; font-weight: bold;"></p>
 
-<script src="/static/student.js"></script>
-
+<script type="module" src="/static/student.js"></script>
 </body>
 </html>
-
