@@ -21,8 +21,10 @@ password TEXT
 )
 """)
 
-c.execute("INSERT OR IGNORE INTO teacher VALUES ('teacher@parul.com','1234')")
+c.execute("DELETE FROM teacher")
+c.execute("INSERT INTO teacher VALUES('teacher@parul.com','1234')")
 
 conn.commit()
 conn.close()
 print("Database ready")
+
