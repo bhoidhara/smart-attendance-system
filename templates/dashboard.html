@@ -1,8 +1,48 @@
-<h2>Teacher Dashboard</h2>
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Teacher Dashboard</title>
+<style>
+body{font-family:Arial;background:#f4f6f8;padding:10px;}
+h2{text-align:center;}
+table{width:100%;border-collapse:collapse;background:white;}
+th,td{padding:10px;border:1px solid #ccc;text-align:center;}
+th{background:#2b7cff;color:white;}
+tr:nth-child(even){background:#f2f2f2;}
 
-<table border="1" width="100%">
+.form-box{
+background:white;
+padding:15px;
+margin-top:20px;
+border-radius:5px;
+}
+input,button{
+width:100%;
+padding:12px;
+margin:8px 0;
+font-size:16px;
+}
+button{
+background:#28a745;
+color:white;
+border:none;
+border-radius:5px;
+}
+</style>
+</head>
+
+<body>
+
+<h2>📋 Attendance Dashboard</h2>
+
+<table>
 <tr>
-<th>Enroll</th><th>Name</th><th>Class</th><th>Time</th><th>Status</th>
+<th>Enrollment</th>
+<th>Name</th>
+<th>Class</th>
+<th>Time</th>
+<th>Status</th>
 </tr>
 
 {% for r in rows %}
@@ -16,13 +56,17 @@
 {% endfor %}
 </table>
 
-<hr>
-<h3>Manual Attendance (Override)</h3>
+<div class="form-box">
+<h3>➕ Manual Attendance (Override)</h3>
 
 <form method="post" action="/override">
-<input name="enroll" placeholder="Enrollment" required><br>
-<input name="name" placeholder="Name" required><br>
-<input name="class" placeholder="Class" required><br>
+<input name="enroll" placeholder="Enrollment Number" required>
+<input name="name" placeholder="Student Name" required>
+<input name="class" placeholder="Class" required>
 <button>Add Attendance</button>
 </form>
+</div>
+
+</body>
+</html>
 
