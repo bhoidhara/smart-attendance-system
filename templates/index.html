@@ -1,34 +1,24 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Smart Attendance</title>
-<link rel="stylesheet" href="/static/style.css">
-<style>
-body { font-family: Arial; text-align: center; padding: 20px; }
-input { padding: 15px; font-size: 18px; width: 90%; max-width: 400px; margin: 10px 0; }
-button { padding: 15px 25px; font-size: 18px; margin: 10px; cursor: pointer; }
-#otpDiv { display: none; }
-</style>
+<title>Attendance</title>
+<script src="/static/student.js"></script>
 </head>
 <body>
+<h2>Scan QR & Mark Attendance</h2>
 
-<h2>📌 Scan QR & Mark Attendance</h2>
+<input id="enroll" placeholder="Enrollment Number"><br><br>
+<input id="name" placeholder="Full Name"><br><br>
+<input id="class" placeholder="Class"><br><br>
 
-<img src="/static/class_qr.png" width="200">
+<button onclick="verify()">Verify Location</button>
 
-<br><br>
+<p id="msg"></p>
 
-<input id="phone" placeholder="+91XXXXXXXXXX">
-<div id="recaptcha"></div>
-<button onclick="sendOTP()">Send OTP</button>
-
-<div id="otpDiv">
-<input id="otp" placeholder="Enter OTP">
-<button onclick="verifyOTP()">Verify & Mark</button>
+<div id="markBox" style="display:none;">
+<button onclick="mark()">MARK ATTENDANCE</button>
 </div>
 
-<p id="msg" style="color: green; font-weight: bold;"></p>
-
-<script type="module" src="/static/student.js"></script>
 </body>
 </html>
+
