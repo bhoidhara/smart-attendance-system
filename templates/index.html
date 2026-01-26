@@ -1,15 +1,27 @@
 <!DOCTYPE html>
 <html>
 <head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Attendance</title>
 <script src="/static/student.js"></script>
+<style>
+body{font-family:Arial;text-align:center;background:#f2f2f2;}
+input,button{
+width:90%;
+padding:15px;
+font-size:18px;
+margin:10px 0;
+}
+button{background:#2b7cff;color:white;border:none;border-radius:5px;}
+</style>
 </head>
-<body>
-<h2>Scan QR & Mark Attendance</h2>
 
-<input id="enroll" placeholder="Enrollment Number"><br><br>
-<input id="name" placeholder="Full Name"><br><br>
-<input id="class" placeholder="Class"><br><br>
+<body>
+<h2>Mark Attendance</h2>
+
+<input id="enroll" placeholder="Enrollment Number">
+<input id="name" placeholder="Full Name">
+<input id="class" placeholder="Class">
 
 <button onclick="verify()">Verify Location</button>
 
@@ -21,4 +33,5 @@
 
 </body>
 </html>
+
 
