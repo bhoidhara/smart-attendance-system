@@ -1,13 +1,11 @@
 from flask import Flask, request, jsonify, render_template, session, redirect, url_for
-from flask_cors import CORS
 import sqlite3
 from datetime import datetime, timedelta
 
 app = Flask(__name__)
-CORS(app)
-app.secret_key = 'your-secret-key'  # Change this in production
+app.secret_key = 'your-secret-key'  # Change this for production
 
-# Hardcoded teacher credentials (replace with proper auth)
+# Hardcoded teacher credentials (use proper auth later)
 TEACHER_EMAIL = 'teacher@parul.edu'
 TEACHER_PASSWORD = 'password123'
 
@@ -35,7 +33,7 @@ def login():
             session['teacher'] = True
             return redirect(url_for('teacher'))
         return "Invalid credentials", 401
-    return render_template('dashboard.html')  # Simple login form
+    return render_template('dashboard.html')
 
 @app.route('/logout')
 def logout():
@@ -99,4 +97,4 @@ def delete_old():
     return jsonify({'msg': f'Deleted {deleted_count} old records'})
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
