@@ -1,30 +1,20 @@
 import sqlite3
 
-conn = sqlite3.connect("attendance.db")
-c = conn.cursor()
+def init_db():
+    conn = sqlite3.connect('attendance.db')
+    cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS attendance (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            enrollment TEXT NOT NULL,
+            class TEXT NOT NULL,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    conn.commit()
+    conn.close()
 
-c.execute("""
-CREATE TABLE IF NOT EXISTS attendance(
-id INTEGER PRIMARY KEY AUTOINCREMENT,
-enroll TEXT,
-name TEXT,
-class TEXT,
-time TEXT,
-status TEXT
-)
-""")
-
-c.execute("""
-CREATE TABLE IF NOT EXISTS teacher(
-email TEXT,
-password TEXT
-)
-""")
-
-c.execute("DELETE FROM teacher")
-c.execute("INSERT INTO teacher VALUES('teacher@parul.com','1234')")
-
-conn.commit()
-conn.close()
-print("Database ready")
-
+if __name__ == '__main__':
+    init_db()
+    print("Database initialized.")

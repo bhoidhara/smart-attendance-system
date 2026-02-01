@@ -1,37 +1,19 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Attendance</title>
-<script src="/static/student.js"></script>
-<style>
-body{font-family:Arial;text-align:center;background:#f2f2f2;}
-input,button{
-width:90%;
-padding:15px;
-font-size:18px;
-margin:10px 0;
-}
-button{background:#2b7cff;color:white;border:none;border-radius:5px;}
-</style>
+    <meta charset="UTF-8">
+    <title>Student Attendance</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
-
 <body>
-<h2>Mark Attendance</h2>
-
-<input id="enroll" placeholder="Enrollment Number">
-<input id="name" placeholder="Full Name">
-<input id="class" placeholder="Class">
-
-<button onclick="verify()">Verify Location</button>
-
-<p id="msg"></p>
-
-<div id="markBox" style="display:none;">
-<button onclick="mark()">MARK ATTENDANCE</button>
-</div>
-
+    <h1>Mark Your Attendance</h1>
+    <form id="attendanceForm">
+        <label>Name: <input type="text" id="name" required></label><br>
+        <label>Enrollment: <input type="text" id="enrollment" required></label><br>
+        <label>Class: <input type="text" id="class" required></label><br>
+        <button type="button" id="verifyLocation">Verify Location</button>
+        <button type="button" id="markAttendance" disabled>Mark Attendance</button>
+    </form>
+    <script src="{{ url_for('static', filename='student.js') }}"></script>
 </body>
 </html>
-
-

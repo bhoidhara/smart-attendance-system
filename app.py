@@ -1,90 +1,102 @@
-from flask import Flask, render_template, request, jsonify, redirect, session
-import sqlite3, math
-from datetime import datetime
+from flask import Flask, request, jsonify, render_template, session, redirect, url_for
+from flask_cors import CORS
+import sqlite3
+from datetime import datetime, timedelta
 
 app = Flask(__name__)
-app.secret_key = "secret123"
-DB = "attendance.db"
+CORS(app)
+app.secret_key = 'your-secret-key'  # Change this in production
 
-# Parul PPI location
-PPI_LAT = 22.2885
-PPI_LON = 73.3620
-RADIUS = 150
+# Hardcoded teacher credentials (replace with proper auth)
+TEACHER_EMAIL = 'teacher@parul.edu'
+TEACHER_PASSWORD = 'password123'
 
-def distance(lat1, lon1, lat2, lon2):
-    R = 6371000
-    p1 = math.radians(lat1)
-    p2 = math.radians(lat2)
-    dp = math.radians(lat2-lat1)
-    dl = math.radians(lon2-lon1)
-    a = math.sin(dp/2)**2 + math.cos(p1)*math.cos(p2)*math.sin(dl/2)**2
-    return 2*R*math.atan2(math.sqrt(a), math.sqrt(1-a))
+def get_db():
+    conn = sqlite3.connect('attendance.db')
+    conn.row_factory = sqlite3.Row
+    return conn
 
-@app.route("/")
-def home():
-    return render_template("index.html")
+@app.route('/')
+def index():
+    return render_template('index.html')
 
-@app.route("/verify", methods=["POST"])
-def verify():
-    d = request.json
-    if True:
-        return jsonify({"status":"inside"})
-    return jsonify({"status":"outside"})
-
-@app.route("/mark", methods=["POST"])
-def mark():
-    d = request.json
-    conn = sqlite3.connect(DB)
-    c = conn.cursor()
-    c.execute("INSERT INTO attendance VALUES(NULL,?,?,?,?,?)",
-              (d["enroll"], d["name"], d["class"], datetime.now(), "Present"))
-    conn.commit()
-    conn.close()
-    return jsonify({"status":"done"})
-
-# Teacher Login
-@app.route("/teacher", methods=["GET","POST"])
+@app.route('/teacher')
 def teacher():
-    if request.method=="POST":
-        e = request.form["email"]
-        p = request.form["password"]
-        conn = sqlite3.connect(DB)
-        c = conn.cursor()
-        r = c.execute("SELECT * FROM teacher WHERE email=? AND password=?", (e,p)).fetchone()
-        conn.close()
-        if r:
-            session["teacher"] = True
-            return redirect("/dashboard")
-    return render_template("teacher.html")
+    if 'teacher' not in session:
+        return redirect(url_for('login'))
+    return render_template('teacher.html')
 
-@app.route("/dashboard")
-def dashboard():
-    if "teacher" not in session:
-        return redirect("/teacher")
-    conn = sqlite3.connect(DB)
-    c = conn.cursor()
-    rows = c.execute("SELECT * FROM attendance ORDER BY time DESC").fetchall()
-    conn.close()
-    return render_template("dashboard.html", rows=rows)
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        email = request.form['email']
+        password = request.form['password']
+        if email == TEACHER_EMAIL and password == TEACHER_PASSWORD:
+            session['teacher'] = True
+            return redirect(url_for('teacher'))
+        return "Invalid credentials", 401
+    return render_template('dashboard.html')  # Simple login form
 
-# Override
-@app.route("/override", methods=["POST"])
-def override():
-    if "teacher" not in session:
-        return redirect("/teacher")
-    e = request.form["enroll"]
-    n = request.form["name"]
-    cl = request.form["class"]
+@app.route('/logout')
+def logout():
+    session.pop('teacher', None)
+    return redirect(url_for('index'))
 
-    conn = sqlite3.connect(DB)
-    c = conn.cursor()
-    c.execute("INSERT INTO attendance VALUES(NULL,?,?,?,?,?)",
-              (e,n,cl,datetime.now(),"Manual"))
+@app.route('/mark', methods=['POST'])
+def mark_attendance():
+    data = request.get_json()
+    name = data.get('name')
+    enrollment = data.get('enrollment')
+    class_name = data.get('class')
+    if not name or not enrollment or not class_name:
+        return jsonify({'msg': 'All fields required'}), 400
+
+    conn = get_db()
+    conn.execute('INSERT INTO attendance (name, enrollment, class) VALUES (?, ?, ?)',
+                 (name, enrollment, class_name))
     conn.commit()
     conn.close()
-    return redirect("/dashboard")
+    return jsonify({'msg': 'Attendance marked successfully!'})
 
-if __name__ == "__main__":
-    app.run()
+@app.route('/override', methods=['POST'])
+def override_attendance():
+    if 'teacher' not in session:
+        return jsonify({'msg': 'Unauthorized'}), 401
+    data = request.get_json()
+    name = data.get('name')
+    enrollment = data.get('enrollment')
+    class_name = data.get('class')
+    if not name or not enrollment or not class_name:
+        return jsonify({'msg': 'All fields required'}), 400
 
+    conn = get_db()
+    conn.execute('INSERT INTO attendance (name, enrollment, class) VALUES (?, ?, ?)',
+                 (name, enrollment, class_name))
+    conn.commit()
+    conn.close()
+    return jsonify({'msg': 'Attendance overridden successfully!'})
 
+@app.route('/get_attendance')
+def get_attendance():
+    if 'teacher' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+    conn = get_db()
+    rows = conn.execute('SELECT * FROM attendance ORDER BY timestamp DESC').fetchall()
+    conn.close()
+    attendance = [dict(row) for row in rows]
+    return jsonify(attendance)
+
+@app.route('/delete_old')
+def delete_old():
+    if 'teacher' not in session:
+        return jsonify({'msg': 'Unauthorized'}), 401
+    one_day_ago = datetime.now() - timedelta(days=1)
+    conn = get_db()
+    conn.execute('DELETE FROM attendance WHERE timestamp < ?', (one_day_ago,))
+    conn.commit()
+    deleted_count = conn.total_changes
+    conn.close()
+    return jsonify({'msg': f'Deleted {deleted_count} old records'})
+
+if __name__ == '__main__':
+    app.run(debug=True)
