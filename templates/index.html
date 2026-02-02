@@ -14,15 +14,14 @@
 <input type="text" id="enroll" placeholder="Enrollment Number" required>
 <input type="text" id="class" placeholder="Class" required>
 
-<button onclick="verify()">Verify Location</button>
-
-<div id="markBox" style="display:none;">
+<button id="verifyBtn">Verify Location</button>
+<button id="markBtn" disabled>Mark Attendance</button>
     <button onclick="mark()">Mark Attendance</button>
 </div>
 
 <p id="msg"></p>
-
 <script src="{{ url_for('static', filename='student.js') }}"></script>
+
 </body>
 </html>
 
