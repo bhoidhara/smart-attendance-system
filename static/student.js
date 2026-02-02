@@ -1,6 +1,4 @@
 document.addEventListener("DOMContentLoaded", function () {
-    console.log("STUDENT JS LOADED");
-
     const enrollment = document.getElementById("enrollment");
     const name = document.getElementById("name");
     const className = document.getElementById("class_name");
@@ -16,15 +14,17 @@ document.addEventListener("DOMContentLoaded", function () {
             return;
         }
 
-        message.innerText = "Location will be verified (optional)...";
+        message.innerText = "Location verification optional...";
 
-        // Optional: still get location if available
+        // Optional geolocation (mobile only)
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
                 (pos) => {
                     console.log("Lat:", pos.coords.latitude, "Lng:", pos.coords.longitude);
                 },
-                () => { console.log("Location not provided"); }
+                () => {
+                    console.log("Location not available");
+                }
             );
         }
 
@@ -53,4 +53,5 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     };
 });
+
 

@@ -1,36 +1,67 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Student Attendance</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>
-        body { font-family: Arial; background: #f4f6f8; padding: 20px; }
-        .card { max-width: 400px; margin: auto; background: white; padding: 20px; border-radius: 10px; }
-        h2 { text-align: center; }
-        input, button { width: 100%; padding: 12px; margin-top: 10px; font-size: 16px; }
-        button { border: none; border-radius: 6px; background: #007bff; color: white; }
-        button:disabled { background: gray; }
-        #message { margin-top: 15px; text-align: center; font-weight: bold; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Student Attendance</title>
+<style>
+    body {
+        font-family: Arial;
+        background: #f4f6f8;
+        padding: 20px;
+    }
+    .card {
+        width: 100%;
+        max-width: 420px;
+        margin: auto;
+        background: white;
+        padding: 20px;
+        border-radius: 12px;
+        box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    h2 { text-align: center; }
+    input, button {
+        width: 100%;
+        padding: 14px;
+        margin-top: 10px;
+        font-size: 16px;
+        border-radius: 6px;
+        box-sizing: border-box;
+    }
+    button {
+        border: none;
+        background: #007bff;
+        color: white;
+        font-weight: bold;
+    }
+    button:disabled {
+        background: gray;
+    }
+    #message {
+        margin-top: 15px;
+        text-align: center;
+        font-weight: bold;
+    }
+</style>
 </head>
 <body>
 
 <div class="card">
-    <h2>Student Attendance</h2>
+<h2>Student Attendance</h2>
 
-    <input type="text" id="enrollment" placeholder="Enter Enrollment Number">
-    <input type="text" id="name" placeholder="Enter Full Name">
-    <input type="text" id="class_name" placeholder="Enter Class Name">
+<input type="text" id="enrollment" placeholder="Enrollment Number">
+<input type="text" id="name" placeholder="Full Name">
+<input type="text" id="class_name" placeholder="Class Name">
 
-    <button id="verifyBtn">Verify Location</button>
-    <button id="markBtn" disabled>Mark Attendance</button>
+<button id="verifyBtn">Verify Location</button>
+<button id="markBtn" disabled>Mark Attendance</button>
 
-    <div id="message"></div>
+<div id="message"></div>
 </div>
 
-<script src="{{ url_for('static', filename='student.js') }}?v=5"></script>
+<script src="{{ url_for('static', filename='student.js') }}?v=6"></script>
 </body>
 </html>
+
 
 
