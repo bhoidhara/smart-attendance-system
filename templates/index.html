@@ -1,27 +1,24 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Student Attendance</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
 
-<h2>📲 Mark Your Attendance</h2>
+<h2>STUDENT PAGE LOADED</h2>
 
-<input type="text" id="name" placeholder="Name" required>
-<input type="text" id="enroll" placeholder="Enrollment Number" required>
-<input type="text" id="class" placeholder="Class" required>
+<input id="enrollment">
+<input id="name">
+<input id="class_name">
 
 <button id="verifyBtn">Verify Location</button>
 <button id="markBtn" disabled>Mark Attendance</button>
-    <button onclick="mark()">Mark Attendance</button>
-</div>
 
-<p id="msg"></p>
+<p id="message"></p>
+
 <script src="{{ url_for('static', filename='student.js') }}"></script>
-
 </body>
 </html>
+
 
