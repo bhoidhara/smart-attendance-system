@@ -1,10 +1,13 @@
 import sqlite3
+import os
 
-conn = sqlite3.connect("attendance.db")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.path.join(BASE_DIR, "attendance.db")
+
+conn = sqlite3.connect(DB_PATH)
 cur = conn.cursor()
 
-# Attendance table
-cur.execute('''
+cur.execute("""
 CREATE TABLE IF NOT EXISTS attendance (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     enrollment TEXT,
@@ -14,22 +17,10 @@ CREATE TABLE IF NOT EXISTS attendance (
     time TEXT,
     last_status TEXT
 )
-''')
-
-# Teacher table
-cur.execute('''
-CREATE TABLE IF NOT EXISTS teacher (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    email TEXT,
-    password TEXT
-)
-''')
-
-# Default teacher (change email/password)
-cur.execute('''
-INSERT OR IGNORE INTO teacher (email,password) VALUES ('teacher@example.com','1234')
-''')
+""")
 
 conn.commit()
 conn.close()
-print("Database Initialized")
+
+print("Database initialized successfully")
+

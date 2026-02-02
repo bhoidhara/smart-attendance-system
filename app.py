@@ -4,6 +4,12 @@ from datetime import datetime, timedelta
 
 app = Flask(__name__)
 app.secret_key = "secret123"
+import os
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.path.join(BASE_DIR, "attendance.db")
+
+def get_db():
+    return sqlite3.connect(DB_PATH, check_same_thread=False)
 
 def get_db():
     conn = sqlite3.connect("attendance.db")
@@ -12,8 +18,8 @@ def get_db():
 
 # Student page
 @app.route("/")
-def home():
-    return render_template("dashboard.html")  # tera purana HTML
+def index():
+    return render_template("index.html")  # tera purana HTML
 
 # Verify location (generic, PPI check ignored)
 @app.route("/verify_location", methods=["POST"])
@@ -23,23 +29,42 @@ def verify_location():
     return jsonify({"status":"success", "message":"Location verified"})
 
 # Mark attendance
-@app.route("/mark_attendance", methods=["POST"])
+@app.route('/mark_attendance', methods=['POST'])
 def mark_attendance():
-    data = request.get_json()
-    enrollment = data.get("enrollment")
-    name = data.get("name")
-    class_name = data.get("class_name")
-    now = datetime.now()
+    try:
+        data = request.get_json()
 
-    conn = get_db()
-    cur = conn.cursor()
-    cur.execute(
-        "INSERT INTO attendance (enrollment,name,class_name,date,time,last_status) VALUES (?,?,?,?,?,?)",
-        (enrollment, name, class_name, now.date(), now.strftime("%H:%M:%S"), "Marked")
-    )
-    conn.commit()
-    conn.close()
-    return jsonify({"message":"Attendance marked successfully"})
+        enrollment = data['enrollment']
+        name = data['name']
+        class_name = data['class_name']
+
+        now = datetime.now()
+
+        conn = get_db()
+        cur = conn.cursor()
+
+        cur.execute("""
+            INSERT INTO attendance
+            (enrollment, name, class_name, date, time, last_status)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (
+            enrollment,
+            name,
+            class_name,
+            now.strftime('%Y-%m-%d'),
+            now.strftime('%H:%M:%S'),
+            'Student'
+        ))
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({"message": "Attendance marked successfully"})
+
+    except Exception as e:
+        print("ERROR:", e)
+        return jsonify({"message": "Error marking attendance"}), 500
+
 
 # Teacher login
 @app.route("/teacher_login", methods=["GET","POST"])
