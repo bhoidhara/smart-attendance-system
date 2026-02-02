@@ -3,6 +3,10 @@ import sqlite3
 import math
 
 app = Flask(__name__)
+@app.route('/')
+def home():
+    return render_template('index.html')
+
 DB = 'attendance.db'
 
 def get_db():
