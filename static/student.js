@@ -1,86 +1,78 @@
-let locationVerified = false;
+document.addEventListener('DOMContentLoaded', function(){
 
-document.getElementById('verifyLocation').addEventListener('click', verifyLocation);
-document.getElementById('markAttendance').addEventListener('click', markAttendance);
+    const verifyBtn = document.getElementById('verifyBtn');
+    const markBtn = document.getElementById('markBtn');
+    const message = document.getElementById('message');
 
-function verifyLocation() {
-    if (!navigator.geolocation) {
-        alert("Geolocation not supported on this device/browser. Please use a mobile device or contact your teacher for manual attendance.");
-        return;
-    }
+    // Read QR link parameters automatically
+    const urlParams = new URLSearchParams(window.location.search);
+    document.getElementById('enrollment').value = urlParams.get('enrollment') || '';
+    document.getElementById('name').value = urlParams.get('name') || '';
+    document.getElementById('class_name').value = urlParams.get('class_name') || '';
 
-    // Request location with options for better accuracy
-    navigator.geolocation.getCurrentPosition(
-        pos => {
-            const lat = pos.coords.latitude;
-            const lon = pos.coords.longitude;
+    verifyBtn.addEventListener('click', function(){
+        const enrollment = document.getElementById('enrollment').value.trim();
+        const name = document.getElementById('name').value.trim();
+        const class_name = document.getElementById('class_name').value.trim();
 
-            // Parul University range (adjust RANGE if needed for laptops with Wi-Fi-based location)
-            const PARUL_LAT = 22.2886;
-            const PARUL_LON = 73.3622;
-            const RANGE = 0.01; // 0.01 degrees ~ 1km; increase to 0.05 for laptops if inaccurate
-
-            if (Math.abs(lat - PARUL_LAT) > RANGE || Math.abs(lon - PARUL_LON) > RANGE) {
-                alert("Location not verified (outside Parul University). If using a laptop, location may be inaccurate—contact teacher.");
-                return;
-            }
-
-            alert("Location verified! You can now mark attendance.");
-            locationVerified = true;
-            document.getElementById('markAttendance').disabled = false;
-        },
-        err => {
-            // Handle errors specifically for laptops/mobiles
-            let errorMsg = "Geolocation error: ";
-            switch (err.code) {
-                case err.PERMISSION_DENIED:
-                    errorMsg += "Location access denied. Enable it in browser settings.";
-                    break;
-                case err.POSITION_UNAVAILABLE:
-                    errorMsg += "Location unavailable (common on laptops without GPS). Contact teacher for override.";
-                    break;
-                case err.TIMEOUT:
-                    errorMsg += "Location request timed out. Try again.";
-                    break;
-                default:
-                    errorMsg += err.message;
-            }
-            alert(errorMsg);
-        },
-        {
-            enableHighAccuracy: true, // Better accuracy on mobiles
-            timeout: 10000, // 10 seconds timeout
-            maximumAge: 300000 // Use cached location for 5 minutes
+        if(!enrollment || !name || !class_name){
+            message.innerText = "Please fill all fields!";
+            return;
         }
-    );
-}
 
-function markAttendance() {
-    if (!locationVerified) {
-        alert("Verify location first!");
-        return;
-    }
+        if(!navigator.geolocation){
+            message.innerText = "Geolocation not supported by your browser!";
+            return;
+        }
 
-    const name = document.getElementById("name").value.trim();
-    const enrollment = document.getElementById("enrollment").value.trim();
-    const classValue = document.getElementById("class").value.trim();
+        navigator.geolocation.getCurrentPosition(function(position){
+            const data = {
+                enrollment: enrollment,
+                name: name,
+                class_name: class_name,
+                latitude: position.coords.latitude,
+                longitude: position.coords.longitude
+            };
 
-    if (!name || !enrollment || !classValue) {
-        alert("Please fill all fields.");
-        return;
-    }
+            fetch('/verify_location',{
+                method:'POST',
+                headers:{'Content-Type':'application/json'},
+                body: JSON.stringify(data)
+            })
+            .then(res=>res.json())
+            .then(res=>{
+                message.innerText = res.message;
+                if(res.status==='success'){
+                    markBtn.disabled = false;
+                }
+            })
+            .catch(err=>{
+                console.error(err);
+                message.innerText = "Error verifying location!";
+            });
 
-    const data = { name, enrollment, class: classValue };
+        }, function(error){
+            message.innerText = "Unable to get your location!";
+        });
+    });
 
-    fetch("/mark", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data)
-    })
-    .then(r => {
-        if (!r.ok) throw new Error(`Server error: ${r.status}`);
-        return r.json();
-    })
-    .then(d => alert(d.msg))
-    .catch(err => alert("Error marking attendance: " + err.message));
-}
+    markBtn.addEventListener('click', function(){
+        const enrollment = document.getElementById('enrollment').value.trim();
+        fetch('/mark_attendance',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({enrollment: enrollment})
+        })
+        .then(res=>res.json())
+        .then(res=>{
+            message.innerText = res.message;
+            markBtn.disabled = true;
+        })
+        .catch(err=>{
+            console.error(err);
+            message.innerText = "Error marking attendance!";
+        });
+    });
+});
+
+

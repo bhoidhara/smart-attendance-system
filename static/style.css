@@ -1,72 +1,56 @@
-body {
-    font-family: Arial, sans-serif;
-    margin: 20px;
-    padding: 10px;
-    box-sizing: border-box;
-    max-width: 600px; /* Limits width on large screens */
-    margin: 0 auto; /* Centers on desktop */
+body{
+    font-family: Arial,sans-serif;
+    background-color: #f5f5f5;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
 }
 
-h1, h2, h3 {
-    text-align: center;
+.container{
+    background-color: #fff;
+    padding:30px 50px;
+    border-radius:12px;
+    box-shadow:0 0 15px rgba(0,0,0,0.2);
+    text-align:center;
+    width:300px;
 }
 
-form {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
+input{
+    display:block;
+    width:100%;
+    margin:10px 0;
+    padding:10px;
+    border-radius:6px;
+    border:1px solid #ccc;
 }
 
-label {
-    font-weight: bold;
+button{
+    padding:12px 25px;
+    margin:10px 0;
+    border:none;
+    border-radius:8px;
+    font-size:16px;
+    cursor:pointer;
 }
 
-input {
-    padding: 10px;
-    font-size: 16px; /* Prevents zoom on mobile */
-    border: 1px solid #ccc;
-    border-radius: 4px;
+#verifyBtn{
+    background-color:#007BFF;
+    color:white;
 }
 
-button {
-    padding: 12px;
-    font-size: 16px;
-    background-color: #4CAF50;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    margin-top: 10px;
+#markBtn{
+    background-color:#28A745;
+    color:white;
 }
 
-button:hover {
-    background-color: #45a049;
-}
-
-button:disabled {
-    background-color: #cccccc;
+button:disabled{
+    background-color: #ccc;
     cursor: not-allowed;
 }
 
-ul {
-    list-style-type: none;
-    padding: 0;
-}
-
-li {
-    background: #f9f9f9;
-    margin: 5px 0;
-    padding: 10px;
-    border-radius: 4px;
-}
-
-/* Mobile-specific adjustments */
-@media (max-width: 768px) {
-    body {
-        margin: 10px;
-        padding: 5px;
-    }
-    button {
-        width: 100%; /* Full-width buttons for easy tapping */
-    }
+#message{
+    margin-top:15px;
+    color:#333;
+    font-weight:bold;
 }

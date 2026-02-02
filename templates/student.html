@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Student Attendance</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h2>Student Attendance</h2>
+        <p>Scan QR → Verify your location → Mark Attendance.</p>
+
+        <input type="text" id="enrollment" placeholder="Enrollment Number">
+        <input type="text" id="name" placeholder="Name">
+        <input type="text" id="class_name" placeholder="Class Name">
+
+        <button id="verifyBtn">Verify Location</button>
+        <button id="markBtn" disabled>Mark Attendance</button>
+
+        <p id="message"></p>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/student.js') }}"></script>
+</body>
+</html>
