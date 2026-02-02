@@ -16,41 +16,21 @@ document.addEventListener("DOMContentLoaded", function () {
             return;
         }
 
-        if (!navigator.geolocation) {
-            message.innerText = "Location not supported";
-            return;
+        message.innerText = "Location will be verified (optional)...";
+
+        // Optional: still get location if available
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    console.log("Lat:", pos.coords.latitude, "Lng:", pos.coords.longitude);
+                },
+                () => { console.log("Location not provided"); }
+            );
         }
 
-        message.innerText = "Verifying location...";
-
-        navigator.geolocation.getCurrentPosition(
-            (pos) => {
-                fetch("/verify_location", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        enrollment: enrollment.value,
-                        name: name.value,
-                        class_name: className.value,
-                        latitude: pos.coords.latitude,
-                        longitude: pos.coords.longitude
-                    })
-                })
-                .then(res => res.json())
-                .then(data => {
-                    message.innerText = data.message;
-                    if (data.status === "success") {
-                        markBtn.disabled = false;
-                    }
-                })
-                .catch(() => {
-                    message.innerText = "Server error";
-                });
-            },
-            () => {
-                message.innerText = "Location permission denied";
-            }
-        );
+        // Always enable mark button
+        markBtn.disabled = false;
+        message.innerText = "You can now mark attendance";
     };
 
     markBtn.onclick = function () {
@@ -58,7 +38,9 @@ document.addEventListener("DOMContentLoaded", function () {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-                enrollment: enrollment.value
+                enrollment: enrollment.value,
+                name: name.value,
+                class_name: className.value
             })
         })
         .then(res => res.json())
@@ -71,3 +53,4 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     };
 });
+
