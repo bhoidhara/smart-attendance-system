@@ -1,99 +1,87 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, redirect, session
 import sqlite3
-import math
+from datetime import datetime, timedelta
 
 app = Flask(__name__)
-@app.route('/')
-def home():
-    return render_template('index.html')
-
-DB = 'attendance.db'
+app.secret_key = "secret123"
 
 def get_db():
-    conn = sqlite3.connect(DB)
+    conn = sqlite3.connect("attendance.db")
     conn.row_factory = sqlite3.Row
     return conn
 
-# Haversine formula to check if student is near Parul University
-def is_nearby(lat1, lon1, lat2=22.3072, lon2=73.1812, radius_km=0.5):
-    import math
-    lon1, lat1, lon2, lat2 = map(math.radians, [lon1, lat1, lon2, lat2])
-    dlon = lon2 - lon1
-    dlat = lat2 - lat1
-    a = math.sin(dlat/2)**2 + math.cos(lat1)*math.cos(lat2)*math.sin(dlon/2)**2
-    c = 2*math.asin(math.sqrt(a))
-    km = 6371*c
-    return km <= radius_km
+# Student page
+@app.route("/")
+def home():
+    return render_template("dashboard.html")  # tera purana HTML
 
-@app.route('/')
-def index():
-    return render_template('index.html')
-
-@app.route('/student')
-def student():
-    # Student page opens from QR, data comes from URL parameters
-    return render_template('student.html')
-
-@app.route('/verify_location', methods=['POST'])
+# Verify location (generic, PPI check ignored)
+@app.route("/verify_location", methods=["POST"])
 def verify_location():
     data = request.get_json()
-    enrollment = data.get('enrollment')
-    name = data.get('name')
-    class_name = data.get('class_name')
-    latitude = data.get('latitude')
-    longitude = data.get('longitude')
+    # location optional, always success
+    return jsonify({"status":"success", "message":"Location verified"})
 
-    if not all([enrollment, name, class_name, latitude, longitude]):
-        return jsonify({'status':'fail','message':'Missing data'}),400
-
-    if not is_nearby(float(latitude), float(longitude)):
-        return jsonify({'status':'fail','message':'You are not near Parul University'})
-
-    conn = get_db()
-    cursor = conn.cursor()
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS students(
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            enrollment TEXT UNIQUE,
-            name TEXT,
-            class TEXT
-        )
-    """)
-    cursor.execute("INSERT OR IGNORE INTO students(enrollment,name,class) VALUES (?,?,?)",
-                   (enrollment,name,class_name))
-    conn.commit()
-    conn.close()
-
-    return jsonify({'status':'success','message':'Location verified! You can now mark attendance'})
-
-@app.route('/mark_attendance', methods=['POST'])
+# Mark attendance
+@app.route("/mark_attendance", methods=["POST"])
 def mark_attendance():
     data = request.get_json()
-    enrollment = data.get('enrollment')
-    if not enrollment:
-        return jsonify({'status':'fail','message':'Missing enrollment'}),400
+    enrollment = data.get("enrollment")
+    name = data.get("name")
+    class_name = data.get("class_name")
+    now = datetime.now()
 
     conn = get_db()
-    cursor = conn.cursor()
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS attendance(
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            student_id INTEGER,
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY(student_id) REFERENCES students(id)
-        )
-    """)
-    cursor.execute("SELECT id FROM students WHERE enrollment=?",(enrollment,))
-    student = cursor.fetchone()
-    if not student:
-        conn.close()
-        return jsonify({'status':'fail','message':'Student not found'}),400
-
-    cursor.execute("INSERT INTO attendance(student_id) VALUES (?)",(student['id'],))
+    cur = conn.cursor()
+    cur.execute(
+        "INSERT INTO attendance (enrollment,name,class_name,date,time,last_status) VALUES (?,?,?,?,?,?)",
+        (enrollment, name, class_name, now.date(), now.strftime("%H:%M:%S"), "Marked")
+    )
     conn.commit()
     conn.close()
+    return jsonify({"message":"Attendance marked successfully"})
 
-    return jsonify({'status':'success','message':'Attendance marked successfully!'})
+# Teacher login
+@app.route("/teacher_login", methods=["GET","POST"])
+def teacher_login():
+    if request.method=="POST":
+        email = request.form["email"]
+        password = request.form["password"]
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM teacher WHERE email=? AND password=?", (email,password))
+        teacher = cur.fetchone()
+        conn.close()
+        if teacher:
+            session["teacher"] = email
+            return redirect("/teacher_dashboard")
+        else:
+            return render_template("teacher.html", error="Invalid login")
+    return render_template("teacher.html")
 
-if __name__=="__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+# Teacher dashboard
+@app.route("/teacher_dashboard")
+def teacher_dashboard():
+    if "teacher" not in session:
+        return redirect("/teacher_login")
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM attendance ORDER BY date DESC, time DESC")
+    rows = cur.fetchall()
+    conn.close()
+    return render_template("teacher.html", attendance=rows)
+
+# Override
+@app.route("/override", methods=["POST"])
+def override():
+    if "teacher" not in session:
+        return redirect("/teacher_login")
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("UPDATE attendance SET last_status='Override'")
+    conn.commit()
+    conn.close()
+    return redirect("/teacher_dashboard")
+
+if __name__ == "__main__":
+    app.run(debug=True)

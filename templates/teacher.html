@@ -1,56 +1,50 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Teacher Dashboard</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<meta charset="UTF-8">
+<title>Teacher Dashboard</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+/* keep it neat and simple */
+table{border-collapse:collapse;width:100%;}
+th,td{padding:10px;border:1px solid #ccc;text-align:center;}
+th{background:#007bff;color:white;}
+button{padding:6px 10px;background:red;color:white;border:none;border-radius:4px;}
+</style>
 </head>
 <body>
-    <h1>Teacher Dashboard</h1>
-    <button onclick="logout()">Logout</button>
-    <h2>Attendance Records</h2>
-    <ul id="attendanceList"></ul>
-    <button onclick="deleteOld()">Delete 1-Day-Old Data</button>
-    <h3>Override Attendance</h3>
-    <input type="text" id="overrideName" placeholder="Name">
-    <input type="text" id="overrideEnrollment" placeholder="Enrollment">
-    <input type="text" id="overrideClass" placeholder="Class">
-    <button onclick="overrideAttendance()">Override</button>
-    <script>
-        function loadAttendance() {
-            fetch('/get_attendance')
-                .then(r => r.json())
-                .then(data => {
-                    const list = document.getElementById('attendanceList');
-                    list.innerHTML = '';
-                    data.forEach(item => {
-                        list.innerHTML += `<li>${item.name} (${item.enrollment}) - ${item.class} - ${item.timestamp}</li>`;
-                    });
-                });
-        }
-        function deleteOld() {
-            fetch('/delete_old').then(r => r.json()).then(d => {
-                alert(d.msg);
-                loadAttendance();
-            });
-        }
-        function overrideAttendance() {
-            const data = {
-                name: document.getElementById('overrideName').value,
-                enrollment: document.getElementById('overrideEnrollment').value,
-                class: document.getElementById('overrideClass').value
-            };
-            fetch('/override', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) })
-                .then(r => r.json())
-                .then(d => {
-                    alert(d.msg);
-                    loadAttendance();
-                });
-        }
-        function logout() {
-            window.location.href = '/logout';
-        }
-        loadAttendance();
-    </script>
+<h2>Teacher Dashboard</h2>
+
+{% if error %}
+<p style="color:red">{{ error }}</p>
+{% endif %}
+
+{% if session.teacher %}
+<form action="/override" method="post">
+<button type="submit">Override (Mark Previous Records)</button>
+</form>
+
+<table>
+<tr><th>Name</th><th>Enrollment</th><th>Class</th><th>Date</th><th>Time</th><th>Last Status</th></tr>
+{% for row in attendance %}
+<tr>
+<td>{{ row['name'] }}</td>
+<td>{{ row['enrollment'] }}</td>
+<td>{{ row['class_name'] }}</td>
+<td>{{ row['date'] }}</td>
+<td>{{ row['time'] }}</td>
+<td>{{ row['last_status'] }}</td>
+</tr>
+{% endfor %}
+</table>
+
+{% else %}
+<form method="post" action="/teacher_login">
+<input type="email" name="email" placeholder="Email" required>
+<input type="password" name="password" placeholder="Password" required>
+<button type="submit">Login</button>
+</form>
+{% endif %}
+
 </body>
 </html>

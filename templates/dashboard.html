@@ -1,21 +1,24 @@
-CREATE TABLE IF NOT EXISTS students(
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    enrollment TEXT,
-    name TEXT,
-    class TEXT
-);
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Student Attendance</title>
+<style>
+/* Keep your old UX CSS here */
+</style>
+</head>
+<body>
 
-CREATE TABLE IF NOT EXISTS attendance(
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    student_id INTEGER,
-    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY(student_id) REFERENCES students(id)
-);
+<h2>Student Attendance</h2>
+<input type="text" id="enrollment" placeholder="Enrollment Number">
+<input type="text" id="name" placeholder="Full Name">
+<input type="text" id="class_name" placeholder="Class Name">
+<button id="verifyBtn">Verify Location</button>
+<button id="markBtn" disabled>Mark Attendance</button>
+<div id="message"></div>
 
-CREATE TABLE IF NOT EXISTS teachers(
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    email TEXT UNIQUE,
-    password TEXT
-);
-
+<script src="{{ url_for('static', filename='student.js') }}"></script>
+</body>
+</html>
 
