@@ -54,3 +54,19 @@ button:disabled{
     color:#333;
     font-weight:bold;
 }
+@media (max-width: 768px) {
+  .container, .card {
+    width: 95% !important;
+    max-width: 95% !important;
+    padding: 20px;
+  }
+
+  input, button {
+    font-size: 18px;
+    padding: 14px;
+  }
+
+  h1, h2 {
+    font-size: 24px;
+  }
+}
