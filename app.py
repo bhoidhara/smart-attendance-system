@@ -12,11 +12,12 @@ app.secret_key = "secret123"
 
 DB_PATH = "/tmp/attendance.db"
 
-
 def get_db():
-    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+    conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
+
+
 
 # 🔥 TABLE AUTO CREATE (MOST IMPORTANT)
 def init_db():
@@ -62,30 +63,45 @@ def verify_location():
 @app.route('/mark_attendance', methods=['POST'])
 def mark_attendance():
     data = request.get_json()
-    print("DATA RECEIVED:", data)   # 👈 IMPORTANT
 
-    now = datetime.now()
+    if not data:
+        return jsonify({"message": "No data received"}), 400
 
-    conn = get_db()
-    cur = conn.cursor()
+    enrollment = data.get('enrollment')
+    name = data.get('name')
+    class_name = data.get('class_name')
 
-    cur.execute("""
-        INSERT INTO attendance
-        (enrollment, name, class_name, date, time, last_status)
-        VALUES (?, ?, ?, ?, ?, ?)
-    """, (
-        data.get('enrollment'),
-        data.get('name'),
-        data.get('class_name'),
-        now.strftime('%Y-%m-%d'),
-        now.strftime('%H:%M:%S'),
-        'Student'
-    ))
+    if not enrollment or not name or not class_name:
+        return jsonify({"message": "Missing student data"}), 400
 
-    conn.commit()
-    conn.close()
+    try:
+        now = datetime.now()
+        conn = get_db()
+        cur = conn.cursor()
 
-    return jsonify({"message": "Attendance marked successfully"})
+        cur.execute("""
+            INSERT INTO attendance
+            (enrollment, name, class_name, date, time, last_status)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (
+            enrollment,
+            name,
+            class_name,
+            now.strftime('%Y-%m-%d'),
+            now.strftime('%H:%M:%S'),
+            'Student'
+        ))
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({"message": "Attendance marked successfully"})
+
+    except Exception as e:
+        print("DB ERROR:", e)
+        return jsonify({"message": "Database error"}), 500
+
+
 # =========================
 # TEACHER LOGIN
 # =========================
