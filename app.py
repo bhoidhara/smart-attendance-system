@@ -112,11 +112,26 @@ def build_student_url(class_name=""):
     return base
 
 
-def get_db():
-    db_dir = os.path.dirname(DB_NAME)
+def resolve_db_path():
+    db_path = DB_NAME or "attendance.db"
+    db_dir = os.path.dirname(db_path)
     if db_dir:
-        os.makedirs(db_dir, exist_ok=True)
-    conn = sqlite3.connect(DB_NAME)
+        try:
+            os.makedirs(db_dir, exist_ok=True)
+        except (OSError, PermissionError):
+            return "attendance.db"
+    return db_path
+
+
+def get_db():
+    db_path = resolve_db_path()
+    try:
+        conn = sqlite3.connect(db_path)
+    except (OSError, PermissionError):
+        if db_path != "attendance.db":
+            conn = sqlite3.connect("attendance.db")
+        else:
+            raise
     conn.row_factory = sqlite3.Row
     return conn
 
