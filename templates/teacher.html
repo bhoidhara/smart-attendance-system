@@ -122,6 +122,18 @@
             <button type="submit" style="background:#d32f2f;color:#fff;border:none;">Delete All</button>
         </form>
     </div>
+    <div class="row" style="margin-top: 12px;">
+        <label style="display:flex;align-items:center;gap:8px;">
+            <input type="checkbox" id="autoRefresh">
+            Auto refresh
+        </label>
+        <select id="refreshInterval">
+            <option value="10">10s</option>
+            <option value="30" selected>30s</option>
+            <option value="60">60s</option>
+        </select>
+        <button type="button" id="refreshNow">Refresh Now</button>
+    </div>
     <div class="muted" style="margin-top: 8px;">
         Use Delete Old to keep only the last {{ retention_days }} days.
     </div>
@@ -169,6 +181,48 @@
         {% endfor %}
     </table>
 </div>
+
+<script>
+    (function () {
+        const checkbox = document.getElementById("autoRefresh");
+        const intervalSelect = document.getElementById("refreshInterval");
+        const refreshBtn = document.getElementById("refreshNow");
+        let timerId = null;
+
+        const savedEnabled = localStorage.getItem("teacherAutoRefresh") === "true";
+        const savedInterval = localStorage.getItem("teacherRefreshInterval");
+
+        if (savedInterval) {
+            intervalSelect.value = savedInterval;
+        }
+        checkbox.checked = savedEnabled;
+
+        function schedule() {
+            if (timerId) {
+                clearInterval(timerId);
+                timerId = null;
+            }
+
+            localStorage.setItem("teacherAutoRefresh", checkbox.checked ? "true" : "false");
+            localStorage.setItem("teacherRefreshInterval", intervalSelect.value);
+
+            if (!checkbox.checked) {
+                return;
+            }
+
+            const intervalMs = parseInt(intervalSelect.value, 10) * 1000;
+            timerId = setInterval(() => {
+                window.location.reload();
+            }, intervalMs);
+        }
+
+        checkbox.addEventListener("change", schedule);
+        intervalSelect.addEventListener("change", schedule);
+        refreshBtn.addEventListener("click", () => window.location.reload());
+
+        schedule();
+    })();
+</script>
 
 </body>
 </html>
