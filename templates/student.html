@@ -2,24 +2,29 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Student Attendance</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Attendance System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=2">
 </head>
-<body>
+<body data-api-base="{{ api_base }}">
     <div class="container">
-        <h2>Student Attendance</h2>
-        <p>Scan QR → Verify your location → Mark Attendance.</p>
+        <h1>Student Attendance System</h1>
 
-        <input type="text" id="enrollment" placeholder="Enrollment Number">
-        <input type="text" id="name" placeholder="Name">
-        <input type="text" id="class_name" placeholder="Class Name">
+        <label for="name">Name</label>
+        <input type="text" id="name" placeholder="Enter Name">
 
-        <button id="verifyBtn">Verify Location</button>
-        <button id="markBtn" disabled>Mark Attendance</button>
+        <label for="class_name">Class</label>
+        <input type="text" id="class_name" placeholder="Enter Class Name">
+
+        <label for="enrollment">Enrollment Number</label>
+        <input type="text" id="enrollment" placeholder="Enter Enrollment Number">
+
+        <button id="verifyBtn" type="button">Verify Location</button>
+        <button id="markBtn" type="button" disabled>Mark Attendance</button>
 
         <p id="message"></p>
     </div>
 
-    <script src="{{ url_for('static', filename='js/student.js') }}"></script>
+    <script src="{{ url_for('static', filename='student.js') }}?v=4"></script>
 </body>
 </html>

@@ -1,165 +1,343 @@
-from flask import Flask, render_template, request, jsonify, redirect, session
+from flask import Flask, request, jsonify, render_template, redirect, url_for, session, send_file
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
+from functools import wraps
+from io import BytesIO
+from urllib.parse import urlencode
+import math
+import qrcode
+from werkzeug.security import check_password_hash
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 app = Flask(__name__)
-app.secret_key = "secret123"
+app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-change-me")
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+app.config["PREFERRED_URL_SCHEME"] = "https"
 
-# =========================
-# DATABASE CONFIG (FIXED)
-# =========================
+DB_NAME = os.environ.get("DB_PATH", "attendance.db")
 
-DB_PATH = "/tmp/attendance.db"
+TEACHER_EMAIL = os.environ.get("TEACHER_EMAIL", "").strip()
+TEACHER_PASSWORD = os.environ.get("TEACHER_PASSWORD", "")
+TEACHER_PASSWORD_HASH = os.environ.get("TEACHER_PASSWORD_HASH", "")
+
+STUDENT_URL = os.environ.get("STUDENT_URL", "").strip()
+API_BASE = os.environ.get("API_BASE", "").strip()
+
+CORS_ORIGINS = [
+    origin.strip()
+    for origin in os.environ.get("CORS_ORIGINS", "").split(",")
+    if origin.strip()
+]
+
+
+def parse_float(value):
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def parse_int(value, default):
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+GEOFENCE_LAT = parse_float(os.environ.get("GEOFENCE_LAT"))
+GEOFENCE_LON = parse_float(os.environ.get("GEOFENCE_LON"))
+GEOFENCE_RADIUS_M = parse_float(os.environ.get("GEOFENCE_RADIUS_M"))
+RETENTION_DAYS = parse_int(os.environ.get("RETENTION_DAYS"), 30)
+
+
+def geofence_enabled():
+    return (
+        GEOFENCE_LAT is not None
+        and GEOFENCE_LON is not None
+        and GEOFENCE_RADIUS_M is not None
+    )
+
+
+def haversine_m(lat1, lon1, lat2, lon2):
+    r = 6371000.0
+    phi1 = math.radians(lat1)
+    phi2 = math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dlambda = math.radians(lon2 - lon1)
+
+    a = math.sin(dphi / 2.0) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2.0) ** 2
+    return 2 * r * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+
+def cleanup_old_records(conn):
+    if RETENTION_DAYS <= 0:
+        return 0
+    cutoff = datetime.now() - timedelta(days=RETENTION_DAYS)
+    cutoff_str = cutoff.strftime("%Y-%m-%d %H:%M:%S")
+    cur = conn.cursor()
+    cur.execute("DELETE FROM attendance WHERE time < ?", (cutoff_str,))
+    return cur.rowcount
+
+
+def teacher_login_configured():
+    return bool(TEACHER_EMAIL and (TEACHER_PASSWORD or TEACHER_PASSWORD_HASH))
+
+
+def verify_teacher(email, password):
+    if not teacher_login_configured():
+        return False
+    if email.strip().lower() != TEACHER_EMAIL.lower():
+        return False
+    if TEACHER_PASSWORD_HASH:
+        return check_password_hash(TEACHER_PASSWORD_HASH, password)
+    return password == TEACHER_PASSWORD
+
+
+def login_required(fn):
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        if not session.get("teacher"):
+            return redirect(url_for("login"))
+        return fn(*args, **kwargs)
+
+    return wrapper
+
+
+def build_student_url(class_name=""):
+    base = STUDENT_URL or url_for("student", _external=True)
+    if class_name:
+        separator = "&" if "?" in base else "?"
+        return f"{base}{separator}{urlencode({'class': class_name})}"
+    return base
+
 
 def get_db():
-    conn = sqlite3.connect(DB_PATH)
+    db_dir = os.path.dirname(DB_NAME)
+    if db_dir:
+        os.makedirs(db_dir, exist_ok=True)
+    conn = sqlite3.connect(DB_NAME)
     conn.row_factory = sqlite3.Row
     return conn
 
 
-
-# 🔥 TABLE AUTO CREATE (MOST IMPORTANT)
-def init_db():
-    conn = get_db()
+def get_columns(conn, table_name):
     cur = conn.cursor()
-    cur.execute("""
+    cur.execute(f"PRAGMA table_info({table_name})")
+    return {row[1] for row in cur.fetchall()}
+
+
+def ensure_schema(conn):
+    cur = conn.cursor()
+    cur.execute(
+        """
         CREATE TABLE IF NOT EXISTS attendance (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             enrollment TEXT,
             name TEXT,
-            class_name TEXT,
-            date TEXT,
+            class TEXT,
             time TEXT,
-            last_status TEXT
+            status TEXT
         )
-    """)
+    """
+    )
+
+    cols = get_columns(conn, "attendance")
+
+    if "class" not in cols:
+        cur.execute("ALTER TABLE attendance ADD COLUMN class TEXT")
+        cols.add("class")
+        if "class_name" in cols:
+            cur.execute("UPDATE attendance SET class = class_name WHERE class IS NULL")
+
+    if "time" not in cols:
+        cur.execute("ALTER TABLE attendance ADD COLUMN time TEXT")
+        cols.add("time")
+
+    if "status" not in cols:
+        cur.execute("ALTER TABLE attendance ADD COLUMN status TEXT")
+        cols.add("status")
+        if "last_status" in cols:
+            cur.execute("UPDATE attendance SET status = last_status WHERE status IS NULL")
+
     conn.commit()
+
+
+def init_db():
+    conn = get_db()
+    ensure_schema(conn)
     conn.close()
 
-# app start hote hi table ban jaayegi
+
 init_db()
 
-# =========================
-# STUDENT PAGE
-# =========================
+
+@app.after_request
+def add_cors_headers(response):
+    if not CORS_ORIGINS:
+        return response
+    origin = request.headers.get("Origin")
+    if origin and origin in CORS_ORIGINS:
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Vary"] = "Origin"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+    return response
+
+
 @app.route("/")
 def index():
-    return render_template("index.html")
+    return redirect(url_for("student"))
 
-# =========================
-# VERIFY LOCATION
-# =========================
-@app.route("/verify_location", methods=["POST"])
-def verify_location():
-    return jsonify({
-        "status": "success",
-        "message": "Location verified"
-    })
 
-# =========================
-# MARK ATTENDANCE (FIXED)
-# =========================
-@app.route('/mark_attendance', methods=['POST'])
-def mark_attendance():
-    data = request.get_json()
+@app.route("/student")
+def student():
+    return render_template("student.html", api_base=API_BASE)
 
-    if not data:
-        return jsonify({"message": "No data received"}), 400
 
-    enrollment = data.get('enrollment')
-    name = data.get('name')
-    class_name = data.get('class_name')
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    error = None
+    if not teacher_login_configured():
+        error = "Teacher login is not configured."
+    if request.method == "POST":
+        email = request.form.get("email", "").strip()
+        password = request.form.get("password", "")
 
-    if not enrollment or not name or not class_name:
-        return jsonify({"message": "Missing student data"}), 400
+        if teacher_login_configured() and verify_teacher(email, password):
+            session["teacher"] = email.strip().lower()
+            return redirect(url_for("teacher"))
+        elif teacher_login_configured():
+            error = "Invalid email or password."
+
+    return render_template("login.html", error=error)
+
+
+@app.route("/logout")
+def logout():
+    session.pop("teacher", None)
+    return redirect(url_for("login"))
+
+
+@app.route("/mark", methods=["POST", "OPTIONS"])
+def mark():
+    if request.method == "OPTIONS":
+        return ("", 204)
 
     try:
-        now = datetime.now()
+        data = request.get_json(silent=True)
+        if data is None:
+            data = request.form.to_dict()
+        data = data or {}
+
+        enrollment = str(data.get("enrollment", "")).strip()
+        name = str(data.get("name", "")).strip()
+        class_name = str(data.get("class", "")).strip()
+
+        missing = []
+        if not enrollment:
+            missing.append("enrollment")
+        if not name:
+            missing.append("name")
+        if not class_name:
+            missing.append("class")
+
+        if missing:
+            return jsonify({"error": f"Missing required fields: {', '.join(missing)}"}), 400
+
+        if geofence_enabled():
+            lat = parse_float(data.get("lat"))
+            lon = parse_float(data.get("lon"))
+            if lat is None or lon is None:
+                return jsonify({"error": "Location required."}), 400
+            distance = haversine_m(lat, lon, GEOFENCE_LAT, GEOFENCE_LON)
+            if distance > GEOFENCE_RADIUS_M:
+                return jsonify({"error": "Outside allowed area."}), 403
+
         conn = get_db()
         cur = conn.cursor()
 
-        cur.execute("""
-            INSERT INTO attendance
-            (enrollment, name, class_name, date, time, last_status)
-            VALUES (?, ?, ?, ?, ?, ?)
-        """, (
-            enrollment,
-            name,
-            class_name,
-            now.strftime('%Y-%m-%d'),
-            now.strftime('%H:%M:%S'),
-            'Student'
-        ))
+        cur.execute(
+            "INSERT INTO attendance (enrollment, name, class, time, status) VALUES (?,?,?,?,?)",
+            (
+                enrollment,
+                name,
+                class_name,
+                datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "Present",
+            ),
+        )
+
+        cleanup_old_records(conn)
 
         conn.commit()
         conn.close()
 
-        return jsonify({"message": "Attendance marked successfully"})
+        return jsonify({"message": "Attendance marked"})
+    except Exception as exc:
+        app.logger.exception("mark failed: %s", exc)
+        return jsonify({"error": "Server error. Please try again."}), 500
 
-    except Exception as e:
-        print("DB ERROR:", e)
-        return jsonify({"message": "Database error"}), 500
 
-
-# =========================
-# TEACHER LOGIN
-# =========================
-@app.route("/teacher_login", methods=["GET","POST"])
-def teacher_login():
-    if request.method == "POST":
-        email = request.form["email"]
-        password = request.form["password"]
-
-        conn = get_db()
-        cur = conn.cursor()
-        cur.execute(
-            "SELECT * FROM teacher WHERE email=? AND password=?",
-            (email, password)
-        )
-        teacher = cur.fetchone()
-        conn.close()
-
-        if teacher:
-            session["teacher"] = email
-            return redirect("/teacher_dashboard")
-        else:
-            return render_template("teacher.html", error="Invalid login")
-
-    return render_template("teacher.html")
-
-# =========================
-# TEACHER DASHBOARD
-# =========================
-@app.route("/teacher_dashboard")
-def teacher_dashboard():
-    if "teacher" not in session:
-        return redirect("/teacher_login")
+@app.route("/teacher")
+@login_required
+def teacher():
+    class_name = request.args.get("class", "").strip()
+    student_url = build_student_url(class_name)
 
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("SELECT * FROM attendance ORDER BY date DESC, time DESC")
+    cleanup_old_records(conn)
+    cur.execute("SELECT * FROM attendance ORDER BY time DESC")
     rows = cur.fetchall()
     conn.close()
 
-    return render_template("teacher.html", attendance=rows)
+    return render_template(
+        "teacher.html",
+        rows=rows,
+        class_name=class_name,
+        student_url=student_url,
+        qr_url=url_for("qr", **{"class": class_name}),
+        geofence_enabled=geofence_enabled(),
+        geofence_radius_m=GEOFENCE_RADIUS_M,
+        retention_days=RETENTION_DAYS,
+    )
 
-# =========================
-# OVERRIDE
-# =========================
-@app.route("/override", methods=["POST"])
-def override():
-    if "teacher" not in session:
-        return redirect("/teacher_login")
 
+@app.route("/teacher/delete-old", methods=["POST"])
+@login_required
+def delete_old():
     conn = get_db()
-    cur = conn.cursor()
-    cur.execute("UPDATE attendance SET last_status='Override'")
+    deleted = cleanup_old_records(conn)
     conn.commit()
     conn.close()
+    return redirect(url_for("teacher"))
 
-    return redirect("/teacher_dashboard")
 
-# =========================
+@app.route("/teacher/delete-all", methods=["POST"])
+@login_required
+def delete_all():
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM attendance")
+    conn.commit()
+    conn.close()
+    return redirect(url_for("teacher"))
+
+
+@app.route("/qr")
+@login_required
+def qr():
+    class_name = request.args.get("class", "").strip()
+    target_url = build_student_url(class_name)
+
+    img = qrcode.make(target_url)
+    buf = BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
+
+    return send_file(buf, mimetype="image/png")
+
+
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
