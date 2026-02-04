@@ -99,6 +99,20 @@
 </div>
 
 <div class="card">
+    <h3 style="margin-top: 0;">Filters</h3>
+    <form class="row" method="get" action="{{ url_for('teacher') }}">
+        <input type="text" name="filter_class" placeholder="Filter by class" value="{{ filter_class }}">
+        <input type="date" name="date_from" value="{{ date_from }}">
+        <input type="date" name="date_to" value="{{ date_to }}">
+        <button type="submit">Apply</button>
+        <a href="{{ url_for('teacher') }}">Clear</a>
+    </form>
+    <div class="muted" style="margin-top: 8px;">
+        Use class or date range to filter records.
+    </div>
+</div>
+
+<div class="card">
     <h3 style="margin-top: 0;">Data Controls</h3>
     <div class="row">
         <form method="post" action="{{ url_for('delete_old') }}" onsubmit="return confirm('Delete records older than retention period?');">
@@ -146,8 +160,9 @@
             <td>{{ r["time"] }}</td>
             <td>{{ r["status"] }}</td>
             <td>
-                <form method="post" action="{{ url_for('delete_one', row_id=r['id']) }}" onsubmit="return confirm('Delete this record?');">
-                    <button type="submit" style="background:#d32f2f;color:#fff;border:none;padding:6px 10px;">Delete</button>
+                <a href="{{ url_for('edit_record', row_id=r['id']) }}">Edit</a>
+                <form method="post" action="{{ url_for('delete_one', row_id=r['id']) }}" onsubmit="return confirm('Delete this record?');" style="display:inline;">
+                    <button type="submit" style="background:#d32f2f;color:#fff;border:none;padding:6px 10px;margin-left:6px;">Delete</button>
                 </form>
             </td>
         </tr>

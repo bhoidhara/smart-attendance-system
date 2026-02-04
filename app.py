@@ -298,12 +298,30 @@ def mark():
 @login_required
 def teacher():
     class_name = request.args.get("class", "").strip()
+    filter_class = request.args.get("filter_class", "").strip()
+    date_from = request.args.get("date_from", "").strip()
+    date_to = request.args.get("date_to", "").strip()
     student_url = build_student_url(class_name)
 
     conn = get_db()
     cur = conn.cursor()
     cleanup_old_records(conn)
-    cur.execute("SELECT * FROM attendance ORDER BY time DESC")
+    query = "SELECT * FROM attendance"
+    where = []
+    params = []
+    if filter_class:
+        where.append("class LIKE ?")
+        params.append(f"%{filter_class}%")
+    if date_from:
+        where.append("date(time) >= date(?)")
+        params.append(date_from)
+    if date_to:
+        where.append("date(time) <= date(?)")
+        params.append(date_to)
+    if where:
+        query += " WHERE " + " AND ".join(where)
+    query += " ORDER BY time DESC"
+    cur.execute(query, params)
     rows = cur.fetchall()
     conn.close()
 
@@ -316,6 +334,9 @@ def teacher():
         geofence_enabled=geofence_enabled(),
         geofence_radius_m=GEOFENCE_RADIUS_M,
         retention_days=RETENTION_DAYS,
+        filter_class=filter_class,
+        date_from=date_from,
+        date_to=date_to,
     )
 
 
@@ -349,6 +370,37 @@ def delete_one(row_id):
     conn.commit()
     conn.close()
     return redirect(url_for("teacher"))
+
+
+@app.route("/teacher/edit/<int:row_id>", methods=["GET", "POST"])
+@login_required
+def edit_record(row_id):
+    conn = get_db()
+    cur = conn.cursor()
+    if request.method == "POST":
+        enrollment = request.form.get("enrollment", "").strip()
+        name = request.form.get("name", "").strip()
+        class_name = request.form.get("class", "").strip()
+        status = request.form.get("status", "").strip() or "Present"
+
+        if not enrollment or not name or not class_name:
+            conn.close()
+            return redirect(url_for("edit_record", row_id=row_id))
+
+        cur.execute(
+            "UPDATE attendance SET enrollment = ?, name = ?, class = ?, status = ? WHERE id = ?",
+            (enrollment, name, class_name, status, row_id),
+        )
+        conn.commit()
+        conn.close()
+        return redirect(url_for("teacher"))
+
+    cur.execute("SELECT * FROM attendance WHERE id = ?", (row_id,))
+    row = cur.fetchone()
+    conn.close()
+    if not row:
+        return redirect(url_for("teacher"))
+    return render_template("edit.html", row=row)
 
 
 @app.route("/teacher/override", methods=["POST"])
