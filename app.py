@@ -340,6 +340,53 @@ def delete_all():
     return redirect(url_for("teacher"))
 
 
+@app.route("/teacher/delete/<int:row_id>", methods=["POST"])
+@login_required
+def delete_one(row_id):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM attendance WHERE id = ?", (row_id,))
+    conn.commit()
+    conn.close()
+    return redirect(url_for("teacher"))
+
+
+@app.route("/teacher/override", methods=["POST"])
+@login_required
+def override_attendance():
+    enrollment = request.form.get("enrollment", "").strip()
+    name = request.form.get("name", "").strip()
+    class_name = request.form.get("class", "").strip()
+
+    missing = []
+    if not enrollment:
+        missing.append("enrollment")
+    if not name:
+        missing.append("name")
+    if not class_name:
+        missing.append("class")
+
+    if missing:
+        return redirect(url_for("teacher"))
+
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute(
+        "INSERT INTO attendance (enrollment, name, class, time, status) VALUES (?,?,?,?,?)",
+        (
+            enrollment,
+            name,
+            class_name,
+            datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "Present (Override)",
+        ),
+    )
+    cleanup_old_records(conn)
+    conn.commit()
+    conn.close()
+    return redirect(url_for("teacher"))
+
+
 @app.route("/qr")
 @login_required
 def qr():
