@@ -9,6 +9,7 @@ import math
 import qrcode
 from werkzeug.security import check_password_hash
 from werkzeug.middleware.proxy_fix import ProxyFix
+import time
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-change-me")
@@ -49,6 +50,11 @@ GEOFENCE_LAT = parse_float(os.environ.get("GEOFENCE_LAT"))
 GEOFENCE_LON = parse_float(os.environ.get("GEOFENCE_LON"))
 GEOFENCE_RADIUS_M = parse_float(os.environ.get("GEOFENCE_RADIUS_M"))
 RETENTION_DAYS = parse_int(os.environ.get("RETENTION_DAYS"), 30)
+RATE_LIMIT_PER_MINUTE = parse_int(os.environ.get("RATE_LIMIT_PER_MINUTE"), 6)
+DEVICE_LIMIT_PER_DAY = parse_int(os.environ.get("DEVICE_LIMIT_PER_DAY"), 1)
+DEVICE_COOLDOWN_HOURS = parse_int(os.environ.get("DEVICE_COOLDOWN_HOURS"), 20)
+
+_rate_limit = {}
 
 
 def geofence_enabled():
@@ -57,6 +63,31 @@ def geofence_enabled():
         and GEOFENCE_LON is not None
         and GEOFENCE_RADIUS_M is not None
     )
+
+
+def get_client_ip():
+    return (
+        request.headers.get("X-Forwarded-For", "").split(",")[0].strip()
+        or request.headers.get("X-Real-IP", "").strip()
+        or request.remote_addr
+        or "unknown"
+    )
+
+
+def rate_limit_ok():
+    if RATE_LIMIT_PER_MINUTE <= 0:
+        return True
+    now = time.time()
+    cutoff = now - 60
+    ip = get_client_ip()
+    timestamps = _rate_limit.get(ip, [])
+    timestamps = [t for t in timestamps if t > cutoff]
+    if len(timestamps) >= RATE_LIMIT_PER_MINUTE:
+        _rate_limit[ip] = timestamps
+        return False
+    timestamps.append(now)
+    _rate_limit[ip] = timestamps
+    return True
 
 
 def haversine_m(lat1, lon1, lat2, lon2):
@@ -175,6 +206,10 @@ def ensure_schema(conn):
         if "last_status" in cols:
             cur.execute("UPDATE attendance SET status = last_status WHERE status IS NULL")
 
+    if "ip" not in cols:
+        cur.execute("ALTER TABLE attendance ADD COLUMN ip TEXT")
+        cols.add("ip")
+
     conn.commit()
 
 
@@ -240,6 +275,9 @@ def mark():
         return ("", 204)
 
     try:
+        if not rate_limit_ok():
+            return jsonify({"error": "Too many requests. Please wait and try again."}), 429
+
         data = request.get_json(silent=True)
         if data is None:
             data = request.form.to_dict()
@@ -272,14 +310,32 @@ def mark():
         conn = get_db()
         cur = conn.cursor()
 
+        client_ip = get_client_ip()
+        if DEVICE_LIMIT_PER_DAY > 0:
+            cur.execute(
+                "SELECT time FROM attendance WHERE ip = ? ORDER BY time DESC LIMIT 1",
+                (client_ip,),
+            )
+            row = cur.fetchone()
+            if row:
+                try:
+                    last_time = datetime.strptime(row["time"], "%Y-%m-%d %H:%M:%S")
+                    hours_since = (datetime.now() - last_time).total_seconds() / 3600.0
+                    if hours_since < DEVICE_COOLDOWN_HOURS:
+                        wait_hours = max(1, int(DEVICE_COOLDOWN_HOURS - hours_since + 0.999))
+                        return jsonify({"error": f"Attendance already marked. Try again after {wait_hours} hour(s)."}), 409
+                except Exception:
+                    return jsonify({"error": "Attendance already marked recently. Try again later."}), 409
+
         cur.execute(
-            "INSERT INTO attendance (enrollment, name, class, time, status) VALUES (?,?,?,?,?)",
+            "INSERT INTO attendance (enrollment, name, class, time, status, ip) VALUES (?,?,?,?,?,?)",
             (
                 enrollment,
                 name,
                 class_name,
                 datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                 "Present",
+                client_ip,
             ),
         )
 
@@ -423,14 +479,16 @@ def override_attendance():
 
     conn = get_db()
     cur = conn.cursor()
+    client_ip = get_client_ip()
     cur.execute(
-        "INSERT INTO attendance (enrollment, name, class, time, status) VALUES (?,?,?,?,?)",
+        "INSERT INTO attendance (enrollment, name, class, time, status, ip) VALUES (?,?,?,?,?,?)",
         (
             enrollment,
             name,
             class_name,
             datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "Present (Override)",
+            client_ip,
         ),
     )
     cleanup_old_records(conn)
