@@ -2,6 +2,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const verifyBtn = document.getElementById("verifyBtn");
     const markBtn = document.getElementById("markBtn");
     const msg = document.getElementById("message");
+    const cooldownCard = document.getElementById("cooldownCard");
+    const cooldownText = document.getElementById("cooldownText");
 
     const enrollmentInput = document.getElementById("enrollment");
     const nameInput = document.getElementById("name");
@@ -20,6 +22,21 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         msg.textContent = text;
         msg.style.color = isError ? "#b00020" : "#1b5e20";
+    }
+
+    function showCooldown(text) {
+        if (!cooldownCard || !cooldownText) {
+            return;
+        }
+        cooldownText.textContent = text;
+        cooldownCard.style.display = "block";
+    }
+
+    function hideCooldown() {
+        if (!cooldownCard) {
+            return;
+        }
+        cooldownCard.style.display = "none";
     }
 
     const queryParams = new URLSearchParams(window.location.search);
@@ -87,6 +104,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 };
                 locationVerified = true;
 
+                hideCooldown();
                 setMessage("Location verified.");
                 markBtn.disabled = false;
             },
@@ -156,8 +174,12 @@ document.addEventListener("DOMContentLoaded", () => {
             if (!ok || (data && data.error)) {
                 const message = data && data.error ? data.error : `Server error (${status}).`;
                 setMessage(message, true);
+                if (message.toLowerCase().includes("try again after")) {
+                    showCooldown(message);
+                }
                 return;
             }
+            hideCooldown();
             setMessage("Attendance marked successfully.");
             markBtn.disabled = true;
         };
