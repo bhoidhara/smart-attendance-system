@@ -143,12 +143,13 @@
 
 <div class="card">
     <h3 style="margin-top: 0;">Override Attendance</h3>
-    <form class="row" method="post" action="{{ url_for('override_attendance') }}">
+    <form class="row" method="post" action="{{ url_for('override_attendance') }}" id="overrideForm">
         <input type="text" name="enrollment" placeholder="Enrollment Number" required>
         <input type="text" name="name" placeholder="Student Name" required>
         <input type="text" name="class" placeholder="Class" required>
         <button type="submit">Mark Override</button>
     </form>
+    <div class="muted" id="overrideMsg" style="margin-top: 8px;"></div>
     <div class="muted" style="margin-top: 8px;">
         Use this when a student cannot access their phone.
     </div>
@@ -190,6 +191,8 @@
         const intervalSelect = document.getElementById("refreshInterval");
         const refreshBtn = document.getElementById("refreshNow");
         let timerId = null;
+        const overrideForm = document.getElementById("overrideForm");
+        const overrideMsg = document.getElementById("overrideMsg");
 
         const savedEnabled = localStorage.getItem("teacherAutoRefresh") === "true";
         const savedInterval = localStorage.getItem("teacherRefreshInterval");
@@ -223,8 +226,37 @@
         refreshBtn.addEventListener("click", () => window.location.reload());
 
         schedule();
+
+        const allInputs = document.querySelectorAll("input, select, textarea");
+        allInputs.forEach((input) => {
+            input.addEventListener("focus", () => {
+                if (checkbox.checked) {
+                    checkbox.checked = false;
+                    schedule();
+                }
+            });
+        });
+
+        if (overrideForm) {
+            overrideForm.addEventListener("submit", (e) => {
+                const formData = new FormData(overrideForm);
+                const enrollment = `${formData.get("enrollment") || ""}`.trim();
+                const name = `${formData.get("name") || ""}`.trim();
+                const className = `${formData.get("class") || ""}`.trim();
+                if (!enrollment || !name || !className) {
+                    e.preventDefault();
+                    if (overrideMsg) {
+                        overrideMsg.textContent = "Please fill all fields before submitting.";
+                        overrideMsg.style.color = "#b00020";
+                    }
+                } else if (overrideMsg) {
+                    overrideMsg.textContent = "";
+                }
+            });
+        }
     })();
 </script>
 
 </body>
 </html>
+
