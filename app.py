@@ -403,11 +403,19 @@ def teacher():
     query += " ORDER BY time DESC"
     cur.execute(query, params)
     rows = cur.fetchall()
+    formatted_rows = []
+    for r in rows:
+        try:
+            dt = datetime.strptime(r["time"], "%Y-%m-%d %H:%M:%S")
+            time_display = dt.strftime("%d %b %Y, %I:%M %p")
+        except Exception:
+            time_display = r["time"]
+        formatted_rows.append({**dict(r), "time_display": time_display})
     conn.close()
 
     return render_template(
         "teacher.html",
-        rows=rows,
+        rows=formatted_rows,
         class_name=class_name,
         student_url=student_url,
         qr_url=url_for("qr", **{"class": class_name}),
