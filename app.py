@@ -209,6 +209,9 @@ def ensure_schema(conn):
     if "ip" not in cols:
         cur.execute("ALTER TABLE attendance ADD COLUMN ip TEXT")
         cols.add("ip")
+    if "device_id" not in cols:
+        cur.execute("ALTER TABLE attendance ADD COLUMN device_id TEXT")
+        cols.add("device_id")
 
     conn.commit()
 
@@ -311,10 +314,12 @@ def mark():
         cur = conn.cursor()
 
         client_ip = get_client_ip()
+        device_id = str(data.get("device_id", "")).strip()
+        device_key = device_id or client_ip
         if DEVICE_LIMIT_PER_DAY > 0:
             cur.execute(
-                "SELECT time FROM attendance WHERE ip = ? ORDER BY time DESC LIMIT 1",
-                (client_ip,),
+                "SELECT time FROM attendance WHERE device_id = ? OR (device_id IS NULL AND ip = ?) ORDER BY time DESC LIMIT 1",
+                (device_key, device_key),
             )
             row = cur.fetchone()
             if row:
@@ -328,7 +333,7 @@ def mark():
                     return jsonify({"error": "Attendance already marked recently. Try again later."}), 409
 
         cur.execute(
-            "INSERT INTO attendance (enrollment, name, class, time, status, ip) VALUES (?,?,?,?,?,?)",
+            "INSERT INTO attendance (enrollment, name, class, time, status, ip, device_id) VALUES (?,?,?,?,?,?,?)",
             (
                 enrollment,
                 name,
@@ -336,6 +341,7 @@ def mark():
                 datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                 "Present",
                 client_ip,
+                device_id,
             ),
         )
 
@@ -481,7 +487,7 @@ def override_attendance():
     cur = conn.cursor()
     client_ip = get_client_ip()
     cur.execute(
-        "INSERT INTO attendance (enrollment, name, class, time, status, ip) VALUES (?,?,?,?,?,?)",
+        "INSERT INTO attendance (enrollment, name, class, time, status, ip, device_id) VALUES (?,?,?,?,?,?,?)",
         (
             enrollment,
             name,
@@ -489,6 +495,7 @@ def override_attendance():
             datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "Present (Override)",
             client_ip,
+            "",
         ),
     )
     cleanup_old_records(conn)

@@ -12,6 +12,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let locationVerified = false;
     let isSubmitting = false;
     let lastTap = 0;
+    const deviceId = getOrCreateDeviceId();
 
     function setMessage(text, isError = false) {
         if (!msg) {
@@ -28,6 +29,21 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     setMessage("");
+
+    function getOrCreateDeviceId() {
+        const key = "attendance_device_id";
+        try {
+            const existing = localStorage.getItem(key);
+            if (existing) {
+                return existing;
+            }
+            const newId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+            localStorage.setItem(key, newId);
+            return newId;
+        } catch (err) {
+            return `fallback-${Date.now().toString(36)}`;
+        }
+    }
 
     function attachTap(el, handler) {
         if (!el) {
@@ -109,7 +125,8 @@ document.addEventListener("DOMContentLoaded", () => {
             name,
             class: className,
             lat: location.lat,
-            lon: location.lon
+            lon: location.lon,
+            device_id: deviceId
         };
 
         isSubmitting = true;
