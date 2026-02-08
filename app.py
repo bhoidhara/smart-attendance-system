@@ -375,6 +375,7 @@ def mark():
 def teacher():
     class_name = request.args.get("class", "").strip()
     filter_class = request.args.get("filter_class", "").strip()
+    date_exact = request.args.get("date_exact", "").strip()
     date_from = request.args.get("date_from", "").strip()
     date_to = request.args.get("date_to", "").strip()
     student_url = build_student_url(class_name)
@@ -388,6 +389,9 @@ def teacher():
     if filter_class:
         where.append("class LIKE ?")
         params.append(f"%{filter_class}%")
+    if date_exact:
+        where.append("date(time) = date(?)")
+        params.append(date_exact)
     if date_from:
         where.append("date(time) >= date(?)")
         params.append(date_from)
@@ -411,6 +415,7 @@ def teacher():
         geofence_radius_m=GEOFENCE_RADIUS_M,
         retention_days=RETENTION_DAYS,
         filter_class=filter_class,
+        date_exact=date_exact,
         date_from=date_from,
         date_to=date_to,
     )
