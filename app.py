@@ -1,7 +1,10 @@
 from flask import Flask, request, jsonify, render_template, redirect, url_for, session, send_file
 import sqlite3
 from datetime import datetime, timedelta
-from zoneinfo import ZoneInfo
+try:
+    from zoneinfo import ZoneInfo
+except Exception:
+    ZoneInfo = None
 import os
 from functools import wraps
 from io import BytesIO
@@ -56,6 +59,15 @@ DEVICE_LIMIT_PER_DAY = parse_int(os.environ.get("DEVICE_LIMIT_PER_DAY"), 1)
 DEVICE_COOLDOWN_HOURS = parse_int(os.environ.get("DEVICE_COOLDOWN_HOURS"), 20)
 TIMEZONE = os.environ.get("TIMEZONE", "Asia/Kolkata")
 
+
+def now_local():
+    if ZoneInfo is None:
+        return datetime.now()
+    try:
+        return datetime.now(ZoneInfo(TIMEZONE))
+    except Exception:
+        return datetime.now()
+
 _rate_limit = {}
 
 
@@ -106,7 +118,7 @@ def haversine_m(lat1, lon1, lat2, lon2):
 def cleanup_old_records(conn):
     if RETENTION_DAYS <= 0:
         return 0
-    cutoff = datetime.now(ZoneInfo(TIMEZONE)) - timedelta(days=RETENTION_DAYS)
+    cutoff = now_local() - timedelta(days=RETENTION_DAYS)
     cutoff_str = cutoff.strftime("%Y-%m-%d %H:%M:%S")
     cur = conn.cursor()
     cur.execute("DELETE FROM attendance WHERE time < ?", (cutoff_str,))
@@ -327,7 +339,7 @@ def mark():
             if row:
                 try:
                     last_time = datetime.strptime(row["time"], "%Y-%m-%d %H:%M:%S")
-                    hours_since = (datetime.now(ZoneInfo(TIMEZONE)) - last_time).total_seconds() / 3600.0
+                    hours_since = (now_local() - last_time).total_seconds() / 3600.0
                     if hours_since < DEVICE_COOLDOWN_HOURS:
                         wait_hours = max(1, int(DEVICE_COOLDOWN_HOURS - hours_since + 0.999))
                         return jsonify({"error": f"Attendance already marked. Try again after {wait_hours} hour(s)."}), 409
@@ -340,7 +352,7 @@ def mark():
                 enrollment,
                 name,
                 class_name,
-                datetime.now(ZoneInfo(TIMEZONE)).strftime("%Y-%m-%d %H:%M:%S"),
+                now_local().strftime("%Y-%m-%d %H:%M:%S"),
                 "Present",
                 client_ip,
                 device_id,
@@ -494,7 +506,7 @@ def override_attendance():
             enrollment,
             name,
             class_name,
-            datetime.now(ZoneInfo(TIMEZONE)).strftime("%Y-%m-%d %H:%M:%S"),
+            now_local().strftime("%Y-%m-%d %H:%M:%S"),
             "Present (Override)",
             client_ip,
             "",
