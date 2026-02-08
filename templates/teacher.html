@@ -99,9 +99,9 @@
 </div>
 
 <div class="card">
-    <h3 style="margin-top: 0;">Search Records</h3>
+    <h3 style="margin-top: 0;">Search by Class + Date</h3>
     <form class="row" method="get" action="{{ url_for('teacher') }}" id="filterForm">
-        <input type="text" name="filter_class" placeholder="Class (optional)" value="{{ filter_class }}">
+        <input type="text" name="filter_class" placeholder="Class" value="{{ filter_class }}">
         <label style="display:flex;align-items:center;gap:6px;">
             <span class="muted">From</span>
             <input type="date" name="date_from" value="{{ date_from }}" id="dateFrom">
@@ -113,13 +113,8 @@
         <button type="submit">Search</button>
         <a href="{{ url_for('teacher') }}">Reset</a>
     </form>
-    <div class="row" style="margin-top: 10px;">
-        <button type="button" id="last7">Last 7 days</button>
-        <button type="button" id="last30">Last 30 days</button>
-        <button type="button" id="clearDates">Clear dates</button>
-    </div>
     <div class="muted" style="margin-top: 8px;">
-        Tip: Use date range to search old data.
+        Tip: Select dates to view old attendance (e.g., 8th to 10th).
     </div>
 </div>
 
@@ -198,11 +193,6 @@
         const checkbox = document.getElementById("autoRefresh");
         const intervalSelect = document.getElementById("refreshInterval");
         const refreshBtn = document.getElementById("refreshNow");
-        const dateFrom = document.getElementById("dateFrom");
-        const dateTo = document.getElementById("dateTo");
-        const last7 = document.getElementById("last7");
-        const last30 = document.getElementById("last30");
-        const clearDates = document.getElementById("clearDates");
         let timerId = null;
 
         const savedEnabled = localStorage.getItem("teacherAutoRefresh") === "true";
@@ -237,35 +227,6 @@
         refreshBtn.addEventListener("click", () => window.location.reload());
 
         schedule();
-
-        function formatDate(d) {
-            const month = `${d.getMonth() + 1}`.padStart(2, "0");
-            const day = `${d.getDate()}`.padStart(2, "0");
-            return `${d.getFullYear()}-${month}-${day}`;
-        }
-
-        function setRange(days) {
-            const today = new Date();
-            const from = new Date();
-            from.setDate(today.getDate() - days);
-            dateFrom.value = formatDate(from);
-            dateTo.value = formatDate(today);
-            document.getElementById("filterForm").submit();
-        }
-
-        if (last7) {
-            last7.addEventListener("click", () => setRange(7));
-        }
-        if (last30) {
-            last30.addEventListener("click", () => setRange(30));
-        }
-        if (clearDates) {
-            clearDates.addEventListener("click", () => {
-                dateFrom.value = "";
-                dateTo.value = "";
-                document.getElementById("filterForm").submit();
-            });
-        }
     })();
 </script>
 
