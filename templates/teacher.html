@@ -103,18 +103,14 @@
     <form class="row" method="get" action="{{ url_for('teacher') }}" id="filterForm">
         <input type="text" name="filter_class" placeholder="Class" value="{{ filter_class }}">
         <label style="display:flex;align-items:center;gap:6px;">
-            <span class="muted">From</span>
-            <input type="date" name="date_from" value="{{ date_from }}" id="dateFrom">
-        </label>
-        <label style="display:flex;align-items:center;gap:6px;">
-            <span class="muted">To</span>
-            <input type="date" name="date_to" value="{{ date_to }}" id="dateTo">
+            <span class="muted">Date</span>
+            <input type="date" name="date_exact" value="{{ date_exact }}">
         </label>
         <button type="submit">Search</button>
         <a href="{{ url_for('teacher') }}">Reset</a>
     </form>
     <div class="muted" style="margin-top: 8px;">
-        Tip: Select dates to view old attendance (e.g., 8th to 10th).
+        Tip: Choose one date to view old attendance.
     </div>
 </div>
 
