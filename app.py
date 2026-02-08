@@ -426,7 +426,19 @@ def teacher():
         date_exact=date_exact,
         date_from=date_from,
         date_to=date_to,
+        server_now=now_local().strftime("%d %b %Y, %I:%M %p"),
     )
+
+
+@app.route("/teacher/debug-times")
+@login_required
+def debug_times():
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT id, time FROM attendance ORDER BY id DESC LIMIT 5")
+    rows = cur.fetchall()
+    conn.close()
+    return jsonify({"latest_times": [dict(r) for r in rows]})
 
 
 @app.route("/teacher/delete-old", methods=["POST"])
