@@ -191,15 +191,13 @@
         const refreshBtn = document.getElementById("refreshNow");
         let timerId = null;
 
-        const hasFilters = new URLSearchParams(window.location.search).toString().length > 0;
-
         const savedEnabled = localStorage.getItem("teacherAutoRefresh") === "true";
         const savedInterval = localStorage.getItem("teacherRefreshInterval");
 
         if (savedInterval) {
             intervalSelect.value = savedInterval;
         }
-        checkbox.checked = hasFilters ? false : savedEnabled;
+        checkbox.checked = savedEnabled;
 
         function schedule() {
             if (timerId) {
