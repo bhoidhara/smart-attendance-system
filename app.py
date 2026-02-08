@@ -407,10 +407,10 @@ def teacher():
     for r in rows:
         try:
             dt = datetime.strptime(r["time"], "%Y-%m-%d %H:%M:%S")
-            time_display = dt.strftime("%d %b %Y, %I:%M %p")
+            date_display = dt.strftime("%d %b %Y")
         except Exception:
-            time_display = r["time"]
-        formatted_rows.append({**dict(r), "time_display": time_display})
+            date_display = r["time"]
+        formatted_rows.append({**dict(r), "date_display": date_display})
     conn.close()
 
     return render_template(
