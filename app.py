@@ -50,9 +50,25 @@ def parse_int(value, default):
         return default
 
 
-GEOFENCE_LAT = parse_float(os.environ.get("GEOFENCE_LAT"))
-GEOFENCE_LON = parse_float(os.environ.get("GEOFENCE_LON"))
-GEOFENCE_RADIUS_M = parse_float(os.environ.get("GEOFENCE_RADIUS_M"))
+DEFAULT_GEOFENCE_LAT = 22.28875
+DEFAULT_GEOFENCE_LON = 73.36384
+DEFAULT_GEOFENCE_RADIUS_M = 300.0
+GEOFENCE_DISABLED = os.environ.get("GEOFENCE_DISABLED", "").strip().lower() in ("1", "true", "yes")
+
+
+def geofence_value(name, default):
+    if GEOFENCE_DISABLED:
+        return None
+    raw = os.environ.get(name)
+    if raw is None or raw.strip() == "":
+        return default
+    parsed = parse_float(raw)
+    return parsed if parsed is not None else default
+
+
+GEOFENCE_LAT = geofence_value("GEOFENCE_LAT", DEFAULT_GEOFENCE_LAT)
+GEOFENCE_LON = geofence_value("GEOFENCE_LON", DEFAULT_GEOFENCE_LON)
+GEOFENCE_RADIUS_M = geofence_value("GEOFENCE_RADIUS_M", DEFAULT_GEOFENCE_RADIUS_M)
 RETENTION_DAYS = parse_int(os.environ.get("RETENTION_DAYS"), 30)
 RATE_LIMIT_PER_MINUTE = parse_int(os.environ.get("RATE_LIMIT_PER_MINUTE"), 6)
 DEVICE_LIMIT_PER_DAY = parse_int(os.environ.get("DEVICE_LIMIT_PER_DAY"), 1)
@@ -259,7 +275,12 @@ def index():
 
 @app.route("/student")
 def student():
-    return render_template("student.html", api_base=API_BASE)
+    return render_template(
+        "student.html",
+        api_base=API_BASE,
+        geofence_enabled=geofence_enabled(),
+        geofence_radius_m=GEOFENCE_RADIUS_M,
+    )
 
 
 @app.route("/login", methods=["GET", "POST"])
@@ -368,6 +389,36 @@ def mark():
     except Exception as exc:
         app.logger.exception("mark failed: %s", exc)
         return jsonify({"error": "Server error. Please try again."}), 500
+
+
+@app.route("/verify-location", methods=["POST", "OPTIONS"])
+def verify_location():
+    if request.method == "OPTIONS":
+        return ("", 204)
+
+    data = request.get_json(silent=True)
+    if data is None:
+        data = request.form.to_dict()
+    data = data or {}
+
+    lat = parse_float(data.get("lat"))
+    lon = parse_float(data.get("lon"))
+    if lat is None or lon is None:
+        return jsonify({"error": "Location required."}), 400
+
+    if not geofence_enabled():
+        return jsonify({"geofence_enabled": False, "inside": True})
+
+    distance = haversine_m(lat, lon, GEOFENCE_LAT, GEOFENCE_LON)
+    inside = distance <= GEOFENCE_RADIUS_M
+    return jsonify(
+        {
+            "geofence_enabled": True,
+            "inside": inside,
+            "distance_m": round(distance, 1),
+            "radius_m": GEOFENCE_RADIUS_M,
+        }
+    )
 
 
 @app.route("/teacher")

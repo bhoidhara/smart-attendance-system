@@ -7,6 +7,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const nameInput = document.getElementById("name");
     const classInput = document.getElementById("class_name");
     const apiBase = document.body && document.body.dataset ? document.body.dataset.apiBase : "";
+    const normalizedBase = apiBase ? apiBase.replace(/\/+$/, "") : "";
 
     let location = null;
     let locationVerified = false;
@@ -21,6 +22,18 @@ document.addEventListener("DOMContentLoaded", () => {
         msg.textContent = text;
         msg.style.color = isError ? "#b00020" : "#1b5e20";
     }
+
+    const parseResponse = (r) =>
+        r
+            .text()
+            .then((text) => {
+                try {
+                    return JSON.parse(text);
+                } catch (err) {
+                    return { error: text || `Server error (${r.status}).` };
+                }
+            })
+            .then((data) => ({ data, status: r.status, ok: r.ok }));
 
 
     const queryParams = new URLSearchParams(window.location.search);
@@ -69,6 +82,16 @@ document.addEventListener("DOMContentLoaded", () => {
     attachTap(verifyBtn, verifyLocation);
     attachTap(markBtn, sendAttendance);
 
+    const verifyLabel = verifyBtn ? verifyBtn.textContent : "Verify Location";
+
+    function setVerifyLoading(isLoading) {
+        if (!verifyBtn) {
+            return;
+        }
+        verifyBtn.disabled = isLoading;
+        verifyBtn.textContent = isLoading ? "Verifying..." : verifyLabel;
+    }
+
     function verifyLocation() {
         if (!navigator.geolocation) {
             setMessage("Geolocation not supported", true);
@@ -80,22 +103,147 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
-        navigator.geolocation.getCurrentPosition(
-            (pos) => {
-                location = {
-                    lat: pos.coords.latitude,
-                    lon: pos.coords.longitude
-                };
-                locationVerified = true;
+        setVerifyLoading(true);
+        setMessage("Getting location...");
+        locationVerified = false;
+        markBtn.disabled = true;
 
-                setMessage("Location verified.");
-                markBtn.disabled = false;
-            },
+        const options = {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0
+        };
+
+        const onSuccess = (pos) => {
+            location = {
+                lat: pos.coords.latitude,
+                lon: pos.coords.longitude
+            };
+            verifyWithServer();
+        };
+
+        const onError = (err) => {
+            setVerifyLoading(false);
+            locationVerified = false;
+            markBtn.disabled = true;
+            const reason = err && err.message ? err.message : "Location permission denied.";
+            setMessage(reason, true);
+        };
+
+        const fallbackWatch = () => {
+            let watchId = null;
+            const watchOptions = {
+                enableHighAccuracy: true,
+                timeout: 15000,
+                maximumAge: 0
+            };
+
+            watchId = navigator.geolocation.watchPosition(
+                (pos) => {
+                    if (watchId !== null) {
+                        navigator.geolocation.clearWatch(watchId);
+                    }
+                    onSuccess(pos);
+                },
+                (err) => {
+                    if (watchId !== null) {
+                        navigator.geolocation.clearWatch(watchId);
+                    }
+                    onError(err);
+                },
+                watchOptions
+            );
+
+            setTimeout(() => {
+                if (watchId !== null) {
+                    navigator.geolocation.clearWatch(watchId);
+                    onError({ message: "Location timeout. Try again." });
+                }
+            }, 15000);
+        };
+
+        navigator.geolocation.getCurrentPosition(
+            onSuccess,
             (err) => {
-                const reason = err && err.message ? err.message : "Location permission denied.";
-                setMessage(reason, true);
-            }
+                if (err && err.code === err.PERMISSION_DENIED) {
+                    onError(err);
+                    return;
+                }
+                fallbackWatch();
+            },
+            options
         );
+    }
+
+    function verifyWithServer() {
+        const payload = {
+            lat: location.lat,
+            lon: location.lon
+        };
+
+        const requestOptions = {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        };
+
+        const verifyUrl = normalizedBase ? `${normalizedBase}/verify-location` : "/verify-location";
+
+        const handleResult = ({ data, status, ok }) => {
+            if (!ok || (data && data.error)) {
+                const message = data && data.error ? data.error : `Server error (${status}).`;
+                setMessage(message, true);
+                return;
+            }
+
+            if (!data || data.geofence_enabled === false) {
+                locationVerified = true;
+                markBtn.disabled = false;
+                setMessage("Location captured.");
+                return;
+            }
+
+            if (data.inside) {
+                locationVerified = true;
+                markBtn.disabled = false;
+                const distance =
+                    typeof data.distance_m === "number" ? Math.round(data.distance_m) : null;
+                const radius =
+                    typeof data.radius_m === "number" ? Math.round(data.radius_m) : null;
+                const detail =
+                    distance !== null && radius !== null ? ` (${distance}m / ${radius}m)` : "";
+                setMessage(`Location verified${detail}.`);
+                return;
+            }
+
+            locationVerified = false;
+            markBtn.disabled = true;
+            const distance =
+                typeof data.distance_m === "number" ? Math.round(data.distance_m) : null;
+            const radius =
+                typeof data.radius_m === "number" ? Math.round(data.radius_m) : null;
+            const detail =
+                distance !== null && radius !== null
+                    ? `Outside allowed area (${distance}m, allowed ${radius}m).`
+                    : "Outside allowed area.";
+            setMessage(detail, true);
+        };
+
+        const tryFetch = (url) =>
+            fetch(url, requestOptions)
+                .then(parseResponse)
+                .then(handleResult);
+
+        tryFetch(verifyUrl)
+            .catch(() => {
+                if (normalizedBase) {
+                    return tryFetch("/verify-location");
+                }
+                setMessage("Server error.", true);
+            })
+            .finally(() => {
+                setVerifyLoading(false);
+            });
     }
 
     function sendAttendance(e) {
@@ -132,7 +280,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
         isSubmitting = true;
 
-        const normalizedBase = apiBase ? apiBase.replace(/\/+$/, "") : "";
         const markUrl = normalizedBase ? `${normalizedBase}/mark` : "/mark";
 
         const requestOptions = {
@@ -140,18 +287,6 @@ document.addEventListener("DOMContentLoaded", () => {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload)
         };
-
-        const parseResponse = (r) =>
-            r
-                .text()
-                .then((text) => {
-                    try {
-                        return JSON.parse(text);
-                    } catch (err) {
-                        return { error: text || `Server error (${r.status}).` };
-                    }
-                })
-                .then((data) => ({ data, status: r.status, ok: r.ok }));
 
         const handleResult = ({ data, status, ok }) => {
             if (!ok || (data && data.error)) {

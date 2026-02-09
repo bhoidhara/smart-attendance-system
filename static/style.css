@@ -84,6 +84,13 @@ button {
     color: #333;
 }
 
+.muted {
+    margin-top: 10px;
+    text-align: center;
+    font-size: 13px;
+    color: #666;
+}
+
 
 @media (max-width: 600px) {
     body {

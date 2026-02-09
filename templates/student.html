@@ -22,9 +22,12 @@
         <button id="verifyBtn" type="button">Verify Location</button>
         <button id="markBtn" type="button" disabled>Mark Attendance</button>
 
+        {% if geofence_enabled %}
+        <p class="muted">Allowed area: PPI radius {{ geofence_radius_m }} meters</p>
+        {% endif %}
         <p id="message"></p>
     </div>
 
-    <script src="{{ url_for('static', filename='student.js') }}?v=8"></script>
+    <script src="{{ url_for('static', filename='student.js') }}?v=9"></script>
 </body>
 </html>
