@@ -12,6 +12,7 @@ from urllib.parse import urlencode
 import math
 import qrcode
 from openpyxl import Workbook
+from openpyxl.utils import get_column_letter
 from werkzeug.security import check_password_hash
 from werkzeug.middleware.proxy_fix import ProxyFix
 import time
@@ -518,9 +519,39 @@ def download_attendance():
     wb = Workbook()
     ws = wb.active
     ws.title = "Attendance"
-    ws.append(["Enrollment", "Name", "Class", "Date Time", "Status"])
+
+    headers = ["Enrollment", "Name", "Class", "Date Time", "Status"]
+    ws.append(headers)
+
+    data_rows = []
     for r in rows:
-        ws.append([r["enrollment"], r["name"], r["class"], r["time"], r["status"]])
+        data_rows.append([
+            r["enrollment"] or "",
+            r["name"] or "",
+            r["class"] or "",
+            r["time"] or "",
+            r["status"] or "",
+        ])
+
+    for row in data_rows:
+        ws.append(row)
+
+    # Force Date Time column to text to prevent Excel auto-shortening.
+    date_col = 4
+    for row_idx in range(2, len(data_rows) + 2):
+        cell = ws.cell(row=row_idx, column=date_col)
+        cell.number_format = "@"
+
+    # Auto-size columns based on content length (cap width to keep it neat).
+    for col_idx in range(1, len(headers) + 1):
+        col_letter = get_column_letter(col_idx)
+        max_len = len(headers[col_idx - 1])
+        for row in data_rows:
+            val = row[col_idx - 1]
+            if val is None:
+                val = ""
+            max_len = max(max_len, len(str(val)))
+        ws.column_dimensions[col_letter].width = min(max_len + 2, 40)
 
     output = BytesIO()
     wb.save(output)
