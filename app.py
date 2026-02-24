@@ -11,6 +11,7 @@ from io import BytesIO
 from urllib.parse import urlencode
 import math
 import qrcode
+from openpyxl import Workbook
 from werkzeug.security import check_password_hash
 from werkzeug.middleware.proxy_fix import ProxyFix
 import time
@@ -478,6 +479,57 @@ def teacher():
         date_from=date_from,
         date_to=date_to,
         server_now=now_local().strftime("%d %b %Y, %I:%M %p"),
+    )
+
+
+@app.route("/teacher/download")
+@login_required
+def download_attendance():
+    filter_class = request.args.get("filter_class", "").strip()
+    date_exact = request.args.get("date_exact", "").strip()
+    date_from = request.args.get("date_from", "").strip()
+    date_to = request.args.get("date_to", "").strip()
+
+    conn = get_db()
+    cur = conn.cursor()
+    cleanup_old_records(conn)
+    query = "SELECT enrollment, name, class, time, status FROM attendance"
+    where = []
+    params = []
+    if filter_class:
+        where.append("class LIKE ?")
+        params.append(f"%{filter_class}%")
+    if date_exact:
+        where.append("date(time) = date(?)")
+        params.append(date_exact)
+    if date_from:
+        where.append("date(time) >= date(?)")
+        params.append(date_from)
+    if date_to:
+        where.append("date(time) <= date(?)")
+        params.append(date_to)
+    if where:
+        query += " WHERE " + " AND ".join(where)
+    query += " ORDER BY time DESC"
+    cur.execute(query, params)
+    rows = cur.fetchall()
+    conn.close()
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Attendance"
+    ws.append(["Enrollment", "Name", "Class", "Date Time", "Status"])
+    for r in rows:
+        ws.append([r["enrollment"], r["name"], r["class"], r["time"], r["status"]])
+
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+    return send_file(
+        output,
+        as_attachment=True,
+        download_name="attendance_report.xlsx",
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
 
 

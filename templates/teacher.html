@@ -113,6 +113,13 @@
     <div class="muted" style="margin-top: 8px;">
         Tip: Choose one date to view old attendance.
     </div>
+    <form method="get" action="{{ url_for('download_attendance') }}" style="margin-top: 10px;">
+        <input type="hidden" name="filter_class" value="{{ filter_class }}">
+        <input type="hidden" name="date_exact" value="{{ date_exact }}">
+        <input type="hidden" name="date_from" value="{{ date_from }}">
+        <input type="hidden" name="date_to" value="{{ date_to }}">
+        <button type="submit">Download Excel</button>
+    </form>
 </div>
 
 <div class="card">
